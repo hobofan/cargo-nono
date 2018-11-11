@@ -2,8 +2,8 @@
 
 ## Motivation
 
-From embedded programming, over smart contracts in Rust, to general portable crates, `#![no_std]` crates are becoming more and more widespread.
-However it is currently a very cumbersome process to find out if and why (not) a crate is compatible with `no_std` usage, and often requires a lengthy trial and error process.
+From embedded programming, over smart contracts in Rust, to general cross-platform portable crates, `#![no_std]` crates are becoming more and more widespread.
+However it is currently a very cumbersome process to find out if and why (not) a crate is compatible with `no_std` usage, and often requires a lengthy trial and error process, and digging through the source of all your dependencies.
 
 **cargo nono** tries to aid you in navigating the current minefield that is `no_std` usage, and it's biggest "no no"s.
 

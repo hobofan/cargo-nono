@@ -23,16 +23,19 @@ pub static FAILURE: Emoji = Emoji("❌  ", "");
 pub static MAYBE: Emoji = Emoji("❓  ", "");
 
 fn main() {
-    let mut app = App::new("cargo-nono").subcommand(
-        SubCommand::with_name("check")
-            .arg(Arg::with_name("no-default-features").long("no-default-features"))
-            .arg(
-                Arg::with_name("features")
-                    .long("features")
-                    .multiple(true)
-                    .takes_value(true),
-            ),
-    );
+    let mut app = App::new("cargo nono")
+        .arg(Arg::with_name("dummy").hidden(true).possible_value("nono"))
+        .subcommand(
+            SubCommand::with_name("check")
+                .arg(Arg::with_name("no-default-features").long("no-default-features"))
+                .arg(
+                    Arg::with_name("features")
+                        .long("features")
+                        .multiple(true)
+                        .takes_value(true),
+                )
+                .arg(Arg::with_name("package").long("package").takes_value(true)),
+        );
 
     let matches = app.clone().get_matches();
     if let Some(matches) = matches.subcommand_matches("check") {
@@ -47,8 +50,9 @@ fn main() {
 
         let metadata = metadata_run(None).unwrap();
 
-        // TODO: make selectable
-        let target_workspace_member = metadata.workspace_members.get(0).unwrap();
+        let target_workspace_member =
+            main_ws_member_from_args(&metadata, matches.value_of("package"));
+
         let target_package = metadata
             .packages
             .iter()

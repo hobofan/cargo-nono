@@ -1,7 +1,7 @@
 use std::env;
 use std::process::Command;
 use std::str::from_utf8;
-use cargo_metadata::{Dependency, Metadata, Package};
+use cargo_metadata::{Dependency, Metadata, Package, WorkspaceMember};
 
 use ext::Feature;
 
@@ -34,6 +34,43 @@ pub fn features_from_args(no_default: bool, features_args: Vec<String>) -> Vec<F
     }
 
     features
+}
+
+pub fn main_ws_member_from_args<'a>(
+    metadata: &'a Metadata,
+    package_arg: Option<&str>,
+) -> &'a WorkspaceMember {
+    let target_workspace_member;
+    if metadata.workspace_members.len() == 1 {
+        target_workspace_member = metadata.workspace_members.get(0).unwrap();
+    } else {
+        let package_names: Vec<_> = metadata
+            .workspace_members
+            .iter()
+            .map(|n| n.name())
+            .collect();
+        match package_arg {
+            Some(package_name) => {
+                let member = metadata
+                    .workspace_members
+                    .iter()
+                    .find(|n| n.name() == package_name);
+                if member.is_none() {
+                    println!(
+                        "Unknown package \"{}\". Please provide on of {:?} via --package flag.",
+                        package_name, package_names
+                    );
+                    std::process::exit(1);
+                }
+                target_workspace_member = member.unwrap();
+            }
+            None => {
+                println!("Multiple packages present in workspace. Please provide on of {:?} via --package flag.", package_names);
+                std::process::exit(1);
+            }
+        }
+    }
+    target_workspace_member
 }
 
 pub fn dependencies_to_packages(
