@@ -39,15 +39,7 @@ fn main() {
 
     let matches = app.clone().get_matches();
     if let Some(matches) = matches.subcommand_matches("check") {
-        let features = features_from_args(
-            matches.is_present("no-default-features"),
-            matches
-                .values_of("features")
-                .map(|n| n.into_iter().map(|m| m.to_owned()).collect())
-                .unwrap_or(Vec::new())
-                .to_owned(),
-        );
-
+        let metadata_full = metadata_run(Some("--all-features".to_owned())).unwrap();
         let metadata = metadata_run(None).unwrap();
 
         let target_workspace_member =
@@ -58,14 +50,29 @@ fn main() {
             .iter()
             .find(|package| package.id == target_workspace_member.raw)
             .unwrap();
+        let features = features_from_args(
+            target_package.id.clone(),
+            matches.is_present("no-default-features"),
+            matches
+                .values_of("features")
+                .map(|n| n.into_iter().map(|m| m.to_owned()).collect())
+                .unwrap_or(Vec::new())
+                .to_owned(),
+        );
         let active_features = target_package.active_features_for_features(&features);
         let active_dependencies = target_package.active_dependencies(&active_features);
         let active_packages =
-            dependencies_to_packages(&target_package, &metadata, &active_dependencies);
+            dependencies_to_packages(&target_package, &metadata_full, &active_dependencies);
 
+        let resolved_dependency_features =
+            target_package.all_dependency_features(&metadata_full, &active_features);
         for package in active_packages.iter() {
-            // TODO: I think this needs something else
-            let active_features = package.active_features_for_features(&features);
+            let package_features: Vec<Feature> = resolved_dependency_features
+                .iter()
+                .filter(|n| n.package_id == package.id)
+                .map(|n| n.to_owned())
+                .collect();
+            let active_features = package.active_features_for_features(&package_features);
 
             let srcs: Vec<_> = package
                 .lib_target_sources()
@@ -97,6 +104,12 @@ fn main() {
             println!("{}: {}", check.package_name, overall_res);
             if check.std_because_feature() {
                 println!("  - Crate supports no_std if \"std\" feature is deactivated.");
+                let feat = check
+                    .active_features
+                    .iter()
+                    .find(|n| n.name == "std")
+                    .unwrap();
+                feat.print(2);
             }
         }
         std::process::exit(0);

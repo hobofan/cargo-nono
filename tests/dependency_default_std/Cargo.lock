@@ -1,0 +1,14 @@
+[[package]]
+name = "dependency_default_std"
+version = "0.1.0"
+dependencies = [
+ "serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "serde"
+version = "1.0.80"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[metadata]
+"checksum serde 1.0.80 (registry+https://github.com/rust-lang/crates.io-index)" = "15c141fc7027dd265a47c090bf864cf62b42c4d228bbcf4e51a0c9e2b0d3f7ef"

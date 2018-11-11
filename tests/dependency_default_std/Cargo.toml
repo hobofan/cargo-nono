@@ -1,0 +1,10 @@
+[package]
+name = "dependency_default_std"
+version = "0.1.0"
+authors = ["Maximilian Goisser <goisser94@gmail.com>"]
+
+[dependencies]
+serde = { version = "1.0.80", default-features = false, features = ["std"] }
+
+[features]
+fail = ["serde/std"]

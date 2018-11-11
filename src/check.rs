@@ -57,7 +57,7 @@ impl CheckResult {
     pub fn std_because_feature(&self) -> bool {
         self.active_features
             .iter()
-            .map(|n| &n.inner)
+            .map(|n| &n.name)
             .find(|n| n == &"std")
             .is_some()
     }

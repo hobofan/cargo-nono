@@ -3,14 +3,13 @@ use std::process::Command;
 use std::str::from_utf8;
 use cargo_metadata::{Dependency, Metadata, Package, WorkspaceMember};
 
-use ext::Feature;
+use ext::{Feature, FeatureCause};
 
 pub fn metadata_run(additional_args: Option<String>) -> Result<Metadata, ()> {
     let cargo = env::var("CARGO").unwrap_or_else(|_| String::from("cargo"));
     let mut cmd = Command::new(cargo);
     cmd.arg("metadata");
     cmd.args(&["--format-version", "1"]);
-    cmd.arg("--all-features");
     if let Some(additional_args) = additional_args {
         cmd.arg(&additional_args);
     }
@@ -21,15 +20,23 @@ pub fn metadata_run(additional_args: Option<String>) -> Result<Metadata, ()> {
     Ok(meta)
 }
 
-pub fn features_from_args(no_default: bool, features_args: Vec<String>) -> Vec<Feature> {
+pub fn features_from_args(
+    package_id: String,
+    no_default: bool,
+    features_args: Vec<String>,
+) -> Vec<Feature> {
     let mut features = Vec::new();
     if !no_default {
-        features.push(Feature::new("default".to_owned()));
+        let mut feature = Feature::new(package_id.clone(), "default".to_owned());
+        feature.causes.push(FeatureCause::Default);
+        features.push(feature);
     }
     for features_args_str in features_args {
         let feats = features_args_str.split(",");
         for feat in feats {
-            features.push(Feature::new(feat.to_owned()));
+            let mut feature = Feature::new(package_id.clone(), feat.to_owned());
+            feature.causes.push(FeatureCause::CliFlag(feat.to_owned()));
+            features.push(feature);
         }
     }
 

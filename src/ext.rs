@@ -1,14 +1,60 @@
 use std::collections::HashSet;
-use cargo_metadata::{Dependency, DependencyKind, Package};
+use cargo_metadata::{Dependency, DependencyKind, Metadata, Package};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Feature {
-    pub inner: String,
+    pub package_id: String,
+    pub name: String,
+    pub causes: Vec<FeatureCause>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum FeatureCause {
+    /// Feature is triggered by another feature.
+    // (package_id, feature_name)
+    Feature(Box<Feature>),
+    /// Feature is activated by default in its respective package.
+    Default,
+    /// Feature has been activated via a --features flag.
+    CliFlag(String),
+    Unknown,
 }
 
 impl Feature {
-    pub fn new(feature: String) -> Self {
-        Self { inner: feature }
+    pub fn new(package_id: String, feature: String) -> Self {
+        Self {
+            package_id,
+            name: feature,
+            causes: Vec::new(),
+        }
+    }
+
+    pub fn print(&self, offset: usize) {
+        for _ in 0..offset {
+            print!("  ");
+        }
+        println!(
+            "- Caused by feature flag \"{}\" in crate \"{}\"",
+            self.name, self.package_id
+        );
+        for cause in self.causes.iter() {
+            cause.print(offset + 1);
+        }
+    }
+}
+
+impl FeatureCause {
+    pub fn print(&self, offset: usize) {
+        match self {
+            FeatureCause::Feature(feat) => feat.print(offset),
+            FeatureCause::CliFlag(flag) => {
+                for _ in 0..offset {
+                    print!("  ");
+                }
+                println!("- Caused by providing CLI --features flag \"{}\"", flag)
+            }
+            _ => println!("UNPRINTABLE CAUSE"),
+        }
     }
 }
 
@@ -33,6 +79,41 @@ pub trait PackageExt {
         }
         resolved_features.into_iter().collect()
     }
+
+    /// Tries to turn a feature like "serde/std" into a feature flag on "serde".
+    fn dependency_feature_for_feature(
+        &self,
+        metadata: &Metadata,
+        feature: &Feature,
+    ) -> Option<Feature>;
+
+    fn dependency_features_for_features(
+        &self,
+        metadata: &Metadata,
+        features: &[Feature],
+    ) -> Vec<Feature> {
+        features
+            .iter()
+            .filter_map(|feature| self.dependency_feature_for_feature(metadata, feature))
+            .collect()
+    }
+
+    fn all_dependency_features(
+        &self,
+        metadata: &Metadata,
+        external_features: &[Feature],
+    ) -> Vec<Feature> {
+        let mut features = self.fixed_dependency_features(metadata);
+        for feat in self.dependency_features_for_features(metadata, external_features) {
+            features.push(feat);
+        }
+
+        features
+    }
+
+    /// Fixed dependency features. Those are hardcoded in the Cargo.toml of the package and can not
+    /// be deactivated by turning off its default features.
+    fn fixed_dependency_features(&self, metadata: &Metadata) -> Vec<Feature>;
 
     fn lib_target_sources(&self) -> Vec<String>;
 
@@ -62,16 +143,13 @@ impl PackageExt for Package {
     }
 
     fn active_dependencies_for_feature(&self, feature: &Feature) -> Vec<Dependency> {
-        let activated_features: Vec<Feature> = self.features
-            .get(&feature.inner)
-            .map(|features| features.clone().into_iter().map(Feature::new).collect())
-            .unwrap_or_default();
+        let activated_features = self.active_features_for_feature(feature);
 
         self.dependencies
             .iter()
             .filter(|dependency| {
                 for feature in activated_features.iter() {
-                    if feature.inner == dependency.name {
+                    if feature.name == dependency.name {
                         return true;
                     }
                 }
@@ -89,8 +167,22 @@ impl PackageExt for Package {
         while !unresolved_features.is_empty() {
             for unresolved in unresolved_features.clone().iter() {
                 let activated_features: Vec<Feature> = self.features
-                    .get(&unresolved.inner)
-                    .map(|features| features.clone().into_iter().map(Feature::new).collect())
+                    .get(&unresolved.name)
+                    .map(|features| {
+                        features
+                            .clone()
+                            .into_iter()
+                            .map(|raw_feature| {
+                                let mut new_feature =
+                                    Feature::new("UNKNOWN".to_owned(), raw_feature);
+                                new_feature
+                                    .causes
+                                    .push(FeatureCause::Feature(Box::new(feature.clone())));
+
+                                new_feature
+                            })
+                            .collect()
+                    })
                     .unwrap_or_default();
                 unresolved_features.remove(&unresolved);
                 resolved_features.insert(unresolved.to_owned());
@@ -103,6 +195,51 @@ impl PackageExt for Package {
         }
 
         resolved_features.into_iter().collect()
+    }
+
+    fn dependency_feature_for_feature(
+        &self,
+        metadata: &Metadata,
+        feature: &Feature,
+    ) -> Option<Feature> {
+        if !feature.name.contains("/") {
+            return None;
+        }
+
+        let dependency_feature_parts: Vec<_> = feature.name.split("/").collect();
+        let dependency_name = dependency_feature_parts[0];
+        let dependency_feature_name = dependency_feature_parts[1];
+        let dependency = self.dependencies
+            .iter()
+            .find(|n| n.name == dependency_name)
+            .unwrap();
+        let dep_package_id = metadata.dependency_package_id(self, dependency);
+
+        let mut new_feature = Feature::new(dep_package_id, dependency_feature_name.to_owned());
+        new_feature
+            .causes
+            .push(FeatureCause::Feature(Box::new(feature.clone())));
+
+        Some(new_feature)
+    }
+
+    fn fixed_dependency_features(&self, metadata: &Metadata) -> Vec<Feature> {
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| {
+                let dep_package_id = metadata.dependency_package_id(self, dependency);
+                dependency
+                    .features
+                    .clone()
+                    .into_iter()
+                    .map(|raw_feature| {
+                        let mut feature = Feature::new(dep_package_id.to_owned(), raw_feature);
+                        feature.causes.push(FeatureCause::Default);
+                        feature
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect()
     }
 
     fn always_on_dependencies(&self) -> Vec<Dependency> {
@@ -127,5 +264,33 @@ impl PackageExt for Package {
             .filter(|target| target.kind.contains(&"proc-macro".to_string()))
             .next()
             .is_some()
+    }
+}
+
+pub trait MetadataExt {
+    fn dependency_package_id(&self, package: &Package, dependency: &Dependency) -> String;
+}
+
+impl MetadataExt for Metadata {
+    fn dependency_package_id(&self, package: &Package, dependency: &Dependency) -> String {
+        let resolve_node = self.resolve
+            .clone()
+            .unwrap()
+            .nodes
+            .into_iter()
+            .find(|n| n.id == package.id)
+            .unwrap();
+        // All dependency packages of the package
+        let dependency_packages: Vec<Package> = self.packages
+            .iter()
+            .filter(|n| resolve_node.dependencies.contains(&n.id))
+            .map(|n| n.clone())
+            .collect();
+
+        dependency_packages
+            .into_iter()
+            .find(|package| package.name == dependency.name)
+            .map(|n| n.id)
+            .unwrap()
     }
 }
