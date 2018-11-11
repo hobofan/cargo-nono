@@ -5,6 +5,8 @@ authors = ["Maximilian Goisser <goisser94@gmail.com>"]
 description = "Detect (possible) no_std compatibility of your crate and dependencies"
 keywords = ["cargo", "no_std", "nono", "subcommand"]
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/hobofan/cargo-nono"
+documentation = "https://github.com/hobofan/cargo-nono"
 
 [dependencies]
 cargo_metadata = "0.6.1"

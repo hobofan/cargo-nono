@@ -1,4 +1,4 @@
-# cargo nono - Detect (possible) no_std compatibility of your crate and dependencies
+## cargo nono - Detect (possible) no_std compatibility of your crate and dependencies
 
 ## Motivation
 
