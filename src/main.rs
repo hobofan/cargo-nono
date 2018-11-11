@@ -70,7 +70,6 @@ fn main() {
                 .collect();
             let mut support = CrateSupport::NotDetected;
             if package.is_proc_macro() {
-                println!("PROC_MACRO");
                 support = CrateSupport::ProcMacro;
             }
             if support == CrateSupport::NotDetected {
