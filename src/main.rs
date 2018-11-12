@@ -109,6 +109,9 @@ fn main() {
                 let feat = check.std_feature().unwrap();
                 feat.print(&metadata, 2);
             }
+            if check.support == CrateSupport::NotDetected {
+                println!("  - Did not find a #![no_std] attribute or a conditional attribute #[cfg_attr(not(feature = \"std\"), no_std)] in the crate source. Crate most likely doesn't support no_std without changes.");
+            }
         }
         std::process::exit(0);
     }

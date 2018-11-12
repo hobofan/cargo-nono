@@ -210,8 +210,7 @@ impl PackageExt for Package {
                             .clone()
                             .into_iter()
                             .map(|raw_feature| {
-                                let mut new_feature =
-                                    Feature::new("UNKNOWN".to_owned(), raw_feature);
+                                let mut new_feature = Feature::new(self.id.to_owned(), raw_feature);
                                 new_feature
                                     .causes
                                     .push(FeatureCause::Feature(Box::new(feature.clone())));
