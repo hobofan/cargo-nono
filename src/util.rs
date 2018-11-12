@@ -28,7 +28,9 @@ pub fn features_from_args(
     let mut features = Vec::new();
     if !no_default {
         let mut feature = Feature::new(package_id.clone(), "default".to_owned());
-        feature.causes.push(FeatureCause::Default);
+        feature
+            .causes
+            .push(FeatureCause::Default(package_id.clone()));
         features.push(feature);
     }
     for features_args_str in features_args {

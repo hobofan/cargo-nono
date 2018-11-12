@@ -14,10 +14,14 @@ pub enum FeatureCause {
     // (package_id, feature_name)
     Feature(Box<Feature>),
     /// Feature is activated by default in its respective package.
-    Default,
+    // (package_id)
+    Default(String),
+    /// Feature is activated by explicityly by the provided package_id.
+    // (package_id)
+    Explicit(String),
     /// Feature has been activated via a --features flag.
     CliFlag(String),
-    Unknown,
+    // Unknown,
 }
 
 impl Feature {
@@ -29,31 +33,64 @@ impl Feature {
         }
     }
 
-    pub fn print(&self, offset: usize) {
+    pub fn print(&self, metadata: &Metadata, offset: usize) {
+        let package_print_name = |package_id| {
+            let package = metadata.find_package(package_id);
+            if package.is_none() {
+                return "UNPRINTABLE".to_owned();
+            }
+            let package = package.unwrap();
+            format!("{}:{}", package.name, package.version)
+        };
         for _ in 0..offset {
             print!("  ");
         }
         println!(
             "- Caused by feature flag \"{}\" in crate \"{}\"",
-            self.name, self.package_id
+            self.name,
+            package_print_name(&self.package_id)
         );
         for cause in self.causes.iter() {
-            cause.print(offset + 1);
+            cause.print(metadata, offset + 1);
         }
     }
 }
 
 impl FeatureCause {
-    pub fn print(&self, offset: usize) {
+    pub fn print(&self, metadata: &Metadata, offset: usize) {
+        let print_offset = || {
+            for _ in 0..offset {
+                print!("  ");
+            }
+        };
+        let package_print_name = |package_id| {
+            let package = metadata.find_package(package_id);
+            if package.is_none() {
+                return "UNPRINTABLE".to_owned();
+            }
+            let package = package.unwrap();
+            format!("{}:{}", package.name, package.version)
+        };
         match self {
-            FeatureCause::Feature(feat) => feat.print(offset),
+            FeatureCause::Feature(feat) => feat.print(metadata, offset),
             FeatureCause::CliFlag(flag) => {
-                for _ in 0..offset {
-                    print!("  ");
-                }
+                print_offset();
                 println!("- Caused by providing CLI --features flag \"{}\"", flag)
             }
-            _ => println!("UNPRINTABLE CAUSE"),
+            FeatureCause::Default(package_id) => {
+                print_offset();
+                println!(
+                    "- Caused by implicitly enabled default feature from \"{}\"",
+                    package_print_name(package_id)
+                )
+            }
+            FeatureCause::Explicit(package_id) => {
+                print_offset();
+                println!(
+                    "- Explicityly enabled feature from \"{}\"",
+                    package_print_name(package_id)
+                )
+            }
         }
     }
 }
@@ -214,8 +251,14 @@ impl PackageExt for Package {
             .find(|n| n.name == dependency_name)
             .unwrap();
         let dep_package_id = metadata.dependency_package_id(self, dependency);
+        // package_id of dependency might not be findable if we try to activate the feature of a
+        // optional dependency
+        if dep_package_id.is_none() {
+            return None;
+        }
 
-        let mut new_feature = Feature::new(dep_package_id, dependency_feature_name.to_owned());
+        let mut new_feature =
+            Feature::new(dep_package_id.unwrap(), dependency_feature_name.to_owned());
         new_feature
             .causes
             .push(FeatureCause::Feature(Box::new(feature.clone())));
@@ -228,16 +271,36 @@ impl PackageExt for Package {
             .iter()
             .flat_map(|dependency| {
                 let dep_package_id = metadata.dependency_package_id(self, dependency);
-                dependency
+                // package_id of dependency might not be findable if we try to activate the feature of a
+                // optional dependency
+                if dep_package_id.is_none() {
+                    return Vec::new();
+                }
+                let dep_package_id = dep_package_id.unwrap();
+                // features activated via
+                // serde = { version = "*", features = ["std"] }
+                //                                      ^^^^^
+                let mut explicit_dependency_features = dependency
                     .features
                     .clone()
                     .into_iter()
                     .map(|raw_feature| {
                         let mut feature = Feature::new(dep_package_id.to_owned(), raw_feature);
-                        feature.causes.push(FeatureCause::Default);
+                        feature.causes.push(FeatureCause::Explicit(self.id.clone()));
                         feature
                     })
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>();
+                // features activated via
+                // serde = { version = "*", default-features = true }
+                //                                             ^^^^
+                // or the absence of the default-features option
+                if dependency.uses_default_features {
+                    let mut feature = Feature::new(dep_package_id.to_owned(), "default".to_owned());
+                    feature.causes.push(FeatureCause::Default(self.id.clone()));
+
+                    explicit_dependency_features.push(feature);
+                }
+                explicit_dependency_features
             })
             .collect()
     }
@@ -268,11 +331,18 @@ impl PackageExt for Package {
 }
 
 pub trait MetadataExt {
-    fn dependency_package_id(&self, package: &Package, dependency: &Dependency) -> String;
+    fn find_package(&self, package_id: &str) -> Option<&Package>;
+    fn dependency_package_id(&self, package: &Package, dependency: &Dependency) -> Option<String>;
 }
 
 impl MetadataExt for Metadata {
-    fn dependency_package_id(&self, package: &Package, dependency: &Dependency) -> String {
+    fn find_package(&self, package_id: &str) -> Option<&Package> {
+        self.packages
+            .iter()
+            .find(|package| package.id == package_id)
+    }
+
+    fn dependency_package_id(&self, package: &Package, dependency: &Dependency) -> Option<String> {
         let resolve_node = self.resolve
             .clone()
             .unwrap()
@@ -291,6 +361,5 @@ impl MetadataExt for Metadata {
             .into_iter()
             .find(|package| package.name == dependency.name)
             .map(|n| n.id)
-            .unwrap()
     }
 }

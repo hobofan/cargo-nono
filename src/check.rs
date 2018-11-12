@@ -55,10 +55,10 @@ impl CheckResult {
     }
 
     pub fn std_because_feature(&self) -> bool {
-        self.active_features
-            .iter()
-            .map(|n| &n.name)
-            .find(|n| n == &"std")
-            .is_some()
+        self.std_feature().is_some()
+    }
+
+    pub fn std_feature(&self) -> Option<&Feature> {
+        self.active_features.iter().find(|n| &n.name == "std")
     }
 }
