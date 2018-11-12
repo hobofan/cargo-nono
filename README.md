@@ -26,11 +26,11 @@ The `cargo nono check` subcommand also understands the `--no-default-features` a
 ## Features
 
 - Tries to infer `no_std` compatibility in dependencies by looking for a `#![no_std]` attribute or the often used conditional `#![cfg_attr(not(feature = "std"), no_std)]`
+- Helps in pinpointing which dependencies and feature flags activate `std` feature flags
 
 ### Planned features
 
 - Warn of `[build-dependencies]` features bleeding over: [cargo#5730](https://github.com/rust-lang/cargo/issues/5730)
-- Help in pinpointing which dependencies activate `std` feature flags
 - Check for `use std::` statements
 
 ## License
