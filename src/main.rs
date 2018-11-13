@@ -104,13 +104,16 @@ fn main() {
                 false => FAILURE,
             };
             println!("{}: {}", check.package_name, overall_res);
-            if check.std_because_feature() {
-                println!("  - Crate supports no_std if \"std\" feature is deactivated.");
-                let feat = check.std_feature().unwrap();
+            if let CrateSupport::OnlyWithoutFeature(feature) = &check.support {
+                println!(
+                    "  - Crate supports no_std if \"{}\" feature is deactivated.",
+                    feature
+                );
+                let feat = check.find_active_feature_by_name(&feature).unwrap();
                 feat.print(&metadata, 2);
             }
             if check.support == CrateSupport::NotDetected {
-                println!("  - Did not find a #![no_std] attribute or a conditional attribute #[cfg_attr(not(feature = \"std\"), no_std)] in the crate source. Crate most likely doesn't support no_std without changes.");
+                println!("  - Did not find a #![no_std] attribute or a simple conditional attribute like #[cfg_attr(not(feature = \"std\"), no_std)] in the crate source. Crate most likely doesn't support no_std without changes.");
             }
         }
         std::process::exit(0);

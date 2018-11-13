@@ -8,7 +8,7 @@ use ext::*;
 #[derive(Debug, PartialEq, Eq)]
 pub enum CrateSupport {
     AlwaysNoStd,
-    OnlyWithoutStdFeature,
+    OnlyWithoutFeature(String),
     /// proc macros are not actually linked, so they don't hinder no_std support
     ProcMacro,
     NotDetected,
@@ -22,11 +22,14 @@ pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
 
     let syntax = syn::parse_file(&src).expect("Unable to parse file");
 
-    let only_without_std_feature: syn::Attribute =
-        syn::parse_quote!(#![cfg_attr(not(feature = "std"), no_std)]);
-    let contains_only_without = syntax.attrs.contains(&only_without_std_feature);
-    if contains_only_without {
-        return CrateSupport::OnlyWithoutStdFeature;
+    let known_feature_names = vec!["std", "use_std"];
+    for known_feature_name in known_feature_names {
+        let only_without_std_feature: syn::Attribute =
+            syn::parse_quote!(#![cfg_attr(not(feature = #known_feature_name), no_std)]);
+        let contains_only_without = syntax.attrs.contains(&only_without_std_feature);
+        if contains_only_without {
+            return CrateSupport::OnlyWithoutFeature(known_feature_name.to_owned());
+        }
     }
 
     let always_no_std: syn::Attribute = syn::parse_quote!(#![no_std]);
@@ -49,16 +52,16 @@ impl CheckResult {
         match self.support {
             CrateSupport::AlwaysNoStd => true,
             CrateSupport::ProcMacro => true,
-            CrateSupport::OnlyWithoutStdFeature => !self.std_because_feature(),
+            CrateSupport::OnlyWithoutFeature(ref feature) => !self.is_feature_active(feature),
             CrateSupport::NotDetected => false,
         }
     }
 
-    pub fn std_because_feature(&self) -> bool {
-        self.std_feature().is_some()
+    pub fn is_feature_active(&self, feature: &str) -> bool {
+        self.find_active_feature_by_name(feature).is_some()
     }
 
-    pub fn std_feature(&self) -> Option<&Feature> {
-        self.active_features.iter().find(|n| &n.name == "std")
+    pub fn find_active_feature_by_name(&self, feature: &str) -> Option<&Feature> {
+        self.active_features.iter().find(|n| &n.name == feature)
     }
 }
