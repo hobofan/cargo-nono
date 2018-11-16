@@ -13,6 +13,10 @@ However it is currently a very cumbersome process to find out if and why (not) a
 cargo install cargo-nono
 ```
 
+## Demo
+
+[![asciicast](https://asciinema.org/a/212278.svg)](https://asciinema.org/a/212278)
+
 ## Usage
 
 Run in the crate directory you want to check:
