@@ -1,6 +1,7 @@
 extern crate cargo_metadata;
 extern crate clap;
 extern crate console;
+extern crate proc_macro2;
 extern crate quote;
 extern crate serde;
 extern crate serde_json;
@@ -104,6 +105,9 @@ fn main() {
                 false => FAILURE,
             };
             println!("{}: {}", check.package_name, overall_res);
+            if check.no_std_itself() {
+                continue;
+            }
             if let CrateSupport::OnlyWithoutFeature(feature) = &check.support {
                 println!(
                     "  - Crate supports no_std if \"{}\" feature is deactivated.",

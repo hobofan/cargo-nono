@@ -2,6 +2,8 @@ use quote::quote;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use proc_macro2;
+use proc_macro2::TokenTree;
 
 use ext::*;
 
@@ -14,6 +16,74 @@ pub enum CrateSupport {
     NotDetected,
 }
 
+#[derive(Debug)]
+struct ConditionalAttribute {
+    condition: proc_macro2::TokenStream,
+    attribute: syn::Ident,
+}
+
+impl ConditionalAttribute {
+    fn from_attribute(attr: &syn::Attribute) -> Option<Self> {
+        let cfg_attr_path: syn::Path = syn::parse_quote!(cfg_attr);
+        if attr.path == cfg_attr_path {
+            if let Some(ref first_group_ts) = attr.clone().tts.into_iter().next() {
+                // Group of the surrounding parenthesis
+                if let TokenTree::Group(group) = first_group_ts {
+                    let mut inner_group_stream = group.stream().into_iter();
+                    let condition_part_1 = inner_group_stream.next();
+                    let condition_part_2 = inner_group_stream.next();
+                    inner_group_stream.next();
+                    let gated_attr = inner_group_stream.next();
+
+                    if let Some(TokenTree::Ident(ref gated_attr_ident)) = gated_attr {
+                        let mut condition = proc_macro2::TokenStream::new();
+                        condition.extend(condition_part_1);
+                        condition.extend(condition_part_2);
+
+                        return Some(ConditionalAttribute {
+                            condition,
+                            attribute: gated_attr_ident.clone(),
+                        });
+                    }
+                }
+            }
+        }
+        return None;
+    }
+
+    fn required_feature(&self) -> Option<proc_macro2::Literal> {
+        let not_ident: syn::Ident = syn::parse_quote!(not);
+        let feature_ident: syn::Ident = syn::parse_quote!(feature);
+        let equal_punct: proc_macro2::Punct = syn::parse_quote!(=);
+
+        let mut ts = self.condition.clone().into_iter();
+        if let Some(TokenTree::Ident(not_ident_parsed)) = ts.next() {
+            if not_ident == not_ident_parsed {
+                if let Some(TokenTree::Group(group_parsed)) = ts.next() {
+                    let mut group_stream = group_parsed.stream().into_iter();
+                    let feat_ident = group_stream.next();
+                    let eq_punct = group_stream.next();
+                    let required_literal = group_stream.next();
+
+                    if let (
+                        Some(TokenTree::Ident(feat_ident_parsed)),
+                        Some(TokenTree::Punct(equal_punct_parsed)),
+                        Some(TokenTree::Literal(req_literal)),
+                    ) = (feat_ident, eq_punct, required_literal)
+                    {
+                        if feature_ident == feat_ident_parsed
+                            && equal_punct.as_char() == equal_punct_parsed.as_char()
+                        {
+                            return Some(req_literal);
+                        }
+                    }
+                }
+            }
+        }
+        return None;
+    }
+}
+
 pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
     let mut file = File::open(&src_path).expect("Unable to open file");
 
@@ -22,13 +92,16 @@ pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
 
     let syntax = syn::parse_file(&src).expect("Unable to parse file");
 
-    let known_feature_names = vec!["std", "use_std"];
-    for known_feature_name in known_feature_names {
-        let only_without_std_feature: syn::Attribute =
-            syn::parse_quote!(#![cfg_attr(not(feature = #known_feature_name), no_std)]);
-        let contains_only_without = syntax.attrs.contains(&only_without_std_feature);
-        if contains_only_without {
-            return CrateSupport::OnlyWithoutFeature(known_feature_name.to_owned());
+    for attr in &syntax.attrs {
+        if let Some(conditional_attr) = ConditionalAttribute::from_attribute(&attr) {
+            let no_std_ident: syn::Ident = syn::parse_quote!(no_std);
+            if conditional_attr.attribute == no_std_ident {
+                if let Some(required_feature) = conditional_attr.required_feature() {
+                    let mut feature_name = required_feature.to_string();
+                    feature_name = feature_name[1..feature_name.len() - 1].to_owned();
+                    return CrateSupport::OnlyWithoutFeature(feature_name);
+                }
+            }
         }
     }
 

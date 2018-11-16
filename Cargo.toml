@@ -16,3 +16,4 @@ console = "0.6.2"
 syn = { version = "=0.15.18", default-features = false, features = ["full", "extra-traits", "parsing"] }
 quote = "0.6.10"
 clap = "2.32.0"
+proc-macro2 = "0.4.24"
