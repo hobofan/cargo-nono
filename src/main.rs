@@ -11,13 +11,13 @@ mod check;
 mod ext;
 mod util;
 
-use std::path::PathBuf;
-use console::Emoji;
 use clap::{App, Arg, SubCommand};
+use console::Emoji;
+use std::path::PathBuf;
 
+use check::*;
 use ext::*;
 use util::*;
-use check::*;
 
 pub static SUCCESS: Emoji = Emoji("✅  ", "");
 pub static FAILURE: Emoji = Emoji("❌  ", "");
@@ -62,6 +62,7 @@ fn main() {
         let active_packages =
             dependencies_to_packages(&target_package, &metadata_full, &active_dependencies);
 
+        let mut package_did_fail = false;
         let resolved_dependency_features =
             target_package.all_dependency_features(&metadata_full, &active_features);
         for package in active_packages.iter() {
@@ -88,7 +89,8 @@ fn main() {
             }
             if support == CrateSupport::NotDetected {
                 // TODO: check more than one
-                support = srcs.into_iter()
+                support = srcs
+                    .into_iter()
                     .map(|src_path| get_crate_support_from_source(&src_path))
                     .next()
                     .unwrap_or(CrateSupport::NotDetected);
@@ -100,6 +102,10 @@ fn main() {
                 active_features: active_features,
             };
 
+            // set flag that at least one crate check failed
+            if !check.no_std_itself() {
+                package_did_fail = true;
+            }
             let overall_res = match check.no_std_itself() {
                 true => SUCCESS,
                 false => FAILURE,
@@ -120,7 +126,10 @@ fn main() {
                 println!("  - Did not find a #![no_std] attribute or a simple conditional attribute like #[cfg_attr(not(feature = \"std\"), no_std)] in the crate source. Crate most likely doesn't support no_std without changes.");
             }
         }
-        std::process::exit(0);
+        match package_did_fail {
+            true => std::process::exit(1),
+            false => std::process::exit(0),
+        }
     }
     app.print_help().unwrap();
 }
