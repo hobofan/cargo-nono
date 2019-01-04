@@ -132,4 +132,5 @@ fn main() {
         }
     }
     app.print_help().unwrap();
+    println!(""); // print newline since print_help doesn't do that
 }
