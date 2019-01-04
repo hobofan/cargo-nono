@@ -19,9 +19,99 @@ use check::*;
 use ext::*;
 use util::*;
 
-pub static SUCCESS: Emoji = Emoji("✅  ", "");
-pub static FAILURE: Emoji = Emoji("❌  ", "");
-pub static MAYBE: Emoji = Emoji("❓  ", "");
+use cargo_metadata::{Metadata, Package};
+
+pub static SUCCESS: Emoji = Emoji("✅  ", "SUCCESS");
+pub static FAILURE: Emoji = Emoji("❌  ", "FAILURE");
+pub static MAYBE: Emoji = Emoji("❓  ", "MAYBE");
+
+fn check_and_print_package(
+    package: &Package,
+    resolved_dependency_features: &[Feature],
+    metadata: &Metadata,
+    metadata_full: &Metadata,
+    is_main_pkg: bool,
+) -> bool {
+    let mut package_did_fail = false;
+
+    let package_features: Vec<Feature> = resolved_dependency_features
+        .iter()
+        .filter(|n| n.package_id == package.id)
+        .map(|n| n.to_owned())
+        .collect();
+    let active_features = package.active_features_for_features(&package_features);
+    let active_dependencies = package.active_dependencies(&active_features);
+    let _active_packages = dependencies_to_packages(&package, &metadata_full, &active_dependencies);
+    let _resolved_dependency_features =
+        package.all_dependency_features(&metadata_full, &active_features);
+
+    let mut support = CrateSupport::NotDetected;
+    if package.is_proc_macro() {
+        support = CrateSupport::ProcMacro;
+    }
+    if support == CrateSupport::NotDetected {
+        match is_main_pkg {
+            false => {
+                let srcs: Vec<_> = package
+                    .lib_target_sources()
+                    .into_iter()
+                    .map(PathBuf::from)
+                    .collect();
+                // TODO: check more than one
+                support = srcs
+                    .into_iter()
+                    .map(|src_path| get_crate_support_from_source(&src_path))
+                    .next()
+                    .unwrap_or(CrateSupport::NotDetected);
+            }
+            true => {
+                let srcs: Vec<_> = package
+                    .bin_target_sources()
+                    .into_iter()
+                    .chain(package.lib_target_sources())
+                    .map(PathBuf::from)
+                    .collect();
+                support = srcs
+                    .into_iter()
+                    .map(|src_path| get_crate_support_from_source(&src_path))
+                    .next()
+                    .unwrap_or(CrateSupport::NotDetected);
+            }
+        }
+    }
+
+    let check = CheckResult {
+        package_name: package.name.clone(),
+        support,
+        active_features: active_features,
+    };
+
+    // set flag that at least one crate check failed
+    if !check.no_std_itself() {
+        package_did_fail = true;
+    }
+    let overall_res = match check.no_std_itself() {
+        true => SUCCESS,
+        false => FAILURE,
+    };
+    println!("{}: {}", check.package_name, overall_res);
+    if check.no_std_itself() {
+        return package_did_fail;
+    }
+    if let CrateSupport::OnlyWithoutFeature(feature) = &check.support {
+        println!(
+            "  - Crate supports no_std if \"{}\" feature is deactivated.",
+            feature
+        );
+        let feat = check.find_active_feature_by_name(&feature).unwrap();
+        feat.print(&metadata, 2);
+    }
+    if check.support == CrateSupport::NotDetected {
+        println!("  - Did not find a #![no_std] attribute or a simple conditional attribute like #[cfg_attr(not(feature = \"std\"), no_std)] in the crate source. Crate most likely doesn't support no_std without changes.");
+    }
+
+    package_did_fail
+}
 
 fn main() {
     let mut app = App::new("cargo nono")
@@ -65,65 +155,31 @@ fn main() {
         let mut package_did_fail = false;
         let resolved_dependency_features =
             target_package.all_dependency_features(&metadata_full, &active_features);
+
+        let main_package = metadata
+            .packages
+            .iter()
+            .find(|n| &n.name == target_workspace_member.name())
+            .expect("Unable to find main package.");
+        if check_and_print_package(
+            main_package,
+            &resolved_dependency_features,
+            &metadata,
+            &metadata_full,
+            true,
+        ) {
+            package_did_fail = true;
+        }
+
         for package in active_packages.iter() {
-            let package_features: Vec<Feature> = resolved_dependency_features
-                .iter()
-                .filter(|n| n.package_id == package.id)
-                .map(|n| n.to_owned())
-                .collect();
-            let active_features = package.active_features_for_features(&package_features);
-            let active_dependencies = package.active_dependencies(&active_features);
-            let _active_packages =
-                dependencies_to_packages(&package, &metadata_full, &active_dependencies);
-            let _resolved_dependency_features =
-                package.all_dependency_features(&metadata_full, &active_features);
-
-            let srcs: Vec<_> = package
-                .lib_target_sources()
-                .into_iter()
-                .map(PathBuf::from)
-                .collect();
-            let mut support = CrateSupport::NotDetected;
-            if package.is_proc_macro() {
-                support = CrateSupport::ProcMacro;
-            }
-            if support == CrateSupport::NotDetected {
-                // TODO: check more than one
-                support = srcs
-                    .into_iter()
-                    .map(|src_path| get_crate_support_from_source(&src_path))
-                    .next()
-                    .unwrap_or(CrateSupport::NotDetected);
-            }
-
-            let check = CheckResult {
-                package_name: package.name.clone(),
-                support,
-                active_features: active_features,
-            };
-
-            // set flag that at least one crate check failed
-            if !check.no_std_itself() {
+            if check_and_print_package(
+                package,
+                &resolved_dependency_features,
+                &metadata,
+                &metadata_full,
+                false,
+            ) {
                 package_did_fail = true;
-            }
-            let overall_res = match check.no_std_itself() {
-                true => SUCCESS,
-                false => FAILURE,
-            };
-            println!("{}: {}", check.package_name, overall_res);
-            if check.no_std_itself() {
-                continue;
-            }
-            if let CrateSupport::OnlyWithoutFeature(feature) = &check.support {
-                println!(
-                    "  - Crate supports no_std if \"{}\" feature is deactivated.",
-                    feature
-                );
-                let feat = check.find_active_feature_by_name(&feature).unwrap();
-                feat.print(&metadata, 2);
-            }
-            if check.support == CrateSupport::NotDetected {
-                println!("  - Did not find a #![no_std] attribute or a simple conditional attribute like #[cfg_attr(not(feature = \"std\"), no_std)] in the crate source. Crate most likely doesn't support no_std without changes.");
             }
         }
         match package_did_fail {

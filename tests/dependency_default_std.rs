@@ -4,7 +4,7 @@ use assert_cmd::prelude::*;
 use std::process::Command;
 
 #[test]
-fn fails_with_exit_code_1() {
+fn it_fails_with_exit_code_1() {
     Command::main_binary()
         .unwrap()
         .arg("check")
@@ -14,7 +14,18 @@ fn fails_with_exit_code_1() {
 }
 
 #[test]
-fn prints_cause() {
+fn it_succeeds_with_no_default_features() {
+    Command::main_binary()
+        .unwrap()
+        .arg("check")
+        .arg("--no-default-features")
+        .current_dir("./tests/dependency_default_std")
+        .assert()
+        .success();
+}
+
+#[test]
+fn it_prints_cause() {
     let output = Command::main_binary()
         .unwrap()
         .arg("check")

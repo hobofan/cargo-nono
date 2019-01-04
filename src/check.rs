@@ -1,9 +1,9 @@
+use proc_macro2;
+use proc_macro2::TokenTree;
 use quote::quote;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use proc_macro2;
-use proc_macro2::TokenTree;
 
 use ext::*;
 

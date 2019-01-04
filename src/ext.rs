@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use cargo_metadata::{Dependency, DependencyKind, Metadata, Package};
+use std::collections::HashSet;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Feature {
@@ -153,6 +153,7 @@ pub trait PackageExt {
     fn fixed_dependency_features(&self, metadata: &Metadata) -> Vec<Feature>;
 
     fn lib_target_sources(&self) -> Vec<String>;
+    fn bin_target_sources(&self) -> Vec<String>;
 
     fn is_proc_macro(&self) -> bool;
 }
@@ -203,7 +204,8 @@ impl PackageExt for Package {
 
         while !unresolved_features.is_empty() {
             for unresolved in unresolved_features.clone().iter() {
-                let activated_features: Vec<Feature> = self.features
+                let activated_features: Vec<Feature> = self
+                    .features
                     .get(&unresolved.name)
                     .map(|features| {
                         features
@@ -245,7 +247,8 @@ impl PackageExt for Package {
         let dependency_feature_parts: Vec<_> = feature.name.split("/").collect();
         let dependency_name = dependency_feature_parts[0];
         let dependency_feature_name = dependency_feature_parts[1];
-        let dependency = self.dependencies
+        let dependency = self
+            .dependencies
             .iter()
             .find(|n| n.name == dependency_name)
             .unwrap();
@@ -320,6 +323,14 @@ impl PackageExt for Package {
             .collect()
     }
 
+    fn bin_target_sources(&self) -> Vec<String> {
+        self.targets
+            .iter()
+            .filter(|target| target.kind.contains(&"bin".to_string()))
+            .map(|target| target.src_path.clone())
+            .collect()
+    }
+
     fn is_proc_macro(&self) -> bool {
         self.targets
             .iter()
@@ -342,7 +353,8 @@ impl MetadataExt for Metadata {
     }
 
     fn dependency_package_id(&self, package: &Package, dependency: &Dependency) -> Option<String> {
-        let resolve_node = self.resolve
+        let resolve_node = self
+            .resolve
             .clone()
             .unwrap()
             .nodes
@@ -350,7 +362,8 @@ impl MetadataExt for Metadata {
             .find(|n| n.id == package.id)
             .unwrap();
         // All dependency packages of the package
-        let dependency_packages: Vec<Package> = self.packages
+        let dependency_packages: Vec<Package> = self
+            .packages
             .iter()
             .filter(|n| resolve_node.dependencies.contains(&n.id))
             .map(|n| n.clone())
