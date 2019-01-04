@@ -7,4 +7,4 @@ authors = ["Maximilian Goisser <goisser94@gmail.com>"]
 serde = { version = "1.0.80", default-features = false }
 
 [features]
-fail = ["serde/std"]
+default = ["serde/std"]

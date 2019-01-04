@@ -17,3 +17,6 @@ syn = { version = "=0.15.18", default-features = false, features = ["full", "ext
 quote = "0.6.10"
 clap = "2.32.0"
 proc-macro2 = "0.4.24"
+
+[dev-dependencies]
+assert_cmd = "0.10.2"
