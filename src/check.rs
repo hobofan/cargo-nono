@@ -1,15 +1,8 @@
 use proc_macro2;
 use proc_macro2::TokenTree;
 use quote::quote;
-use std::fmt;
-use std::fs::File;
-use std::io::Read;
-use std::path::PathBuf;
-use syn::spanned::Spanned;
 
-#[cfg(feature = "proc_macro_spans")]
-use std::io::BufRead;
-
+use check_source::*;
 use ext::*;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -22,13 +15,13 @@ pub enum CrateSupport {
 }
 
 #[derive(Debug)]
-struct ConditionalAttribute {
+pub struct ConditionalAttribute {
     condition: proc_macro2::TokenStream,
-    attribute: syn::Ident,
+    pub attribute: syn::Ident,
 }
 
 impl ConditionalAttribute {
-    fn from_attribute(attr: &syn::Attribute) -> Option<Self> {
+    pub fn from_attribute(attr: &syn::Attribute) -> Option<Self> {
         let cfg_attr_path: syn::Path = syn::parse_quote!(cfg_attr);
         if attr.path == cfg_attr_path {
             if let Some(ref first_group_ts) = attr.clone().tts.into_iter().next() {
@@ -56,7 +49,7 @@ impl ConditionalAttribute {
         return None;
     }
 
-    fn required_feature(&self) -> Option<proc_macro2::Literal> {
+    pub fn required_feature(&self) -> Option<proc_macro2::Literal> {
         let not_ident: syn::Ident = syn::parse_quote!(not);
         let feature_ident: syn::Ident = syn::parse_quote!(feature);
         let equal_punct: proc_macro2::Punct = syn::parse_quote!(=);
@@ -86,139 +79,6 @@ impl ConditionalAttribute {
             }
         }
         return None;
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum SourceOffense {
-    /// Source code is missing a `#![no_std]` attribute.
-    /// Only valid for entry point file (main.rs / lib.rs).
-    MissingNoStdAttribute,
-    /// Source code contains an explicit `use std::` statement.
-    UseStdStatement(UseStdStmt),
-}
-
-#[derive(Debug)]
-pub struct UseStdStmt {
-    src_path: PathBuf,
-    span: proc_macro2::Span,
-}
-
-impl PartialEq for UseStdStmt {
-    fn eq(&self, other: &UseStdStmt) -> bool {
-        self.src_path == other.src_path
-    }
-}
-impl Eq for UseStdStmt {}
-
-#[cfg(feature = "proc_macro_spans")]
-impl fmt::Display for UseStdStmt {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let file = File::open(&self.src_path).unwrap();
-        let file = std::io::BufReader::new(file);
-        let line = file
-            .lines()
-            .skip(self.span.start().line - 1)
-            .next()
-            .unwrap()
-            .unwrap();
-
-        writeln!(
-            f,
-            "   --> {src}:{line}:{column}",
-            src = self
-                .src_path
-                .strip_prefix(std::env::current_dir().unwrap())
-                .unwrap()
-                .display(),
-            line = self.span.start().line,
-            column = self.span.start().column
-        )?;
-        writeln!(f, "    |")?;
-
-        writeln!(
-            f,
-            "{line_num:<4}|{line}",
-            line_num = self.span.start().line,
-            line = line
-        )?;
-        writeln!(f, "    |")
-    }
-}
-
-#[cfg(not(feature = "proc_macro_spans"))]
-impl fmt::Display for UseStdStmt {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(
-            f,
-            "   --> {src}",
-            src = self
-                .src_path
-                .strip_prefix(std::env::current_dir().unwrap())
-                .unwrap()
-                .display(),
-        )
-    }
-}
-
-pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
-    let mut file = File::open(&src_path).expect("Unable to open file");
-
-    let mut src = String::new();
-    file.read_to_string(&mut src).expect("Unable to read file");
-
-    let syntax = syn::parse_file(&src).expect("Unable to parse file");
-
-    for attr in &syntax.attrs {
-        if let Some(conditional_attr) = ConditionalAttribute::from_attribute(&attr) {
-            let no_std_ident: syn::Ident = syn::parse_quote!(no_std);
-            if conditional_attr.attribute == no_std_ident {
-                if let Some(required_feature) = conditional_attr.required_feature() {
-                    let mut feature_name = required_feature.to_string();
-                    feature_name = feature_name[1..feature_name.len() - 1].to_owned();
-                    return CrateSupport::OnlyWithoutFeature(feature_name);
-                }
-            }
-        }
-    }
-
-    let mut offenses = vec![];
-
-    let use_statements: Vec<_> = syntax
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            syn::Item::Use(item) => Some(item),
-            _ => None,
-        })
-        .collect();
-
-    let std_ident: syn::Ident = syn::parse_quote!(std);
-    for use_statement in &use_statements {
-        match use_statement.tree {
-            syn::UseTree::Path(ref first_path) => {
-                let first_ident = &first_path.ident;
-                if first_ident == &std_ident {
-                    let stmt = UseStdStmt {
-                        src_path: src_path.clone(),
-                        span: use_statement.tree.span(),
-                    };
-                    offenses.push(SourceOffense::UseStdStatement(stmt));
-                }
-            }
-            _ => unimplemented!(),
-        }
-    }
-
-    let always_no_std: syn::Attribute = syn::parse_quote!(#![no_std]);
-    let contains_always_no_std = syntax.attrs.contains(&always_no_std);
-    if !contains_always_no_std {
-        offenses.push(SourceOffense::MissingNoStdAttribute);
-    }
-
-    match offenses.is_empty() {
-        true => CrateSupport::NoOffenseDetected,
-        false => CrateSupport::SourceOffenses(offenses),
     }
 }
 
