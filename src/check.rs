@@ -1,9 +1,14 @@
 use proc_macro2;
 use proc_macro2::TokenTree;
 use quote::quote;
+use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use syn::spanned::Spanned;
+
+#[cfg(feature = "proc_macro_spans")]
+use std::io::BufRead;
 
 use ext::*;
 
@@ -90,7 +95,70 @@ pub enum SourceOffense {
     /// Only valid for entry point file (main.rs / lib.rs).
     MissingNoStdAttribute,
     /// Source code contains an explicit `use std::` statement.
-    UseStdStatement,
+    UseStdStatement(UseStdStmt),
+}
+
+#[derive(Debug)]
+pub struct UseStdStmt {
+    src_path: PathBuf,
+    span: proc_macro2::Span,
+}
+
+impl PartialEq for UseStdStmt {
+    fn eq(&self, other: &UseStdStmt) -> bool {
+        self.src_path == other.src_path
+    }
+}
+impl Eq for UseStdStmt {}
+
+#[cfg(feature = "proc_macro_spans")]
+impl fmt::Display for UseStdStmt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let file = File::open(&self.src_path).unwrap();
+        let file = std::io::BufReader::new(file);
+        let line = file
+            .lines()
+            .skip(self.span.start().line - 1)
+            .next()
+            .unwrap()
+            .unwrap();
+
+        writeln!(
+            f,
+            "   --> {src}:{line}:{column}",
+            src = self
+                .src_path
+                .strip_prefix(std::env::current_dir().unwrap())
+                .unwrap()
+                .display(),
+            line = self.span.start().line,
+            column = self.span.start().column
+        )?;
+        writeln!(f, "    |")?;
+
+        writeln!(
+            f,
+            "{line_num:<4}|{line}",
+            line_num = self.span.start().line,
+            line = line
+        )?;
+        writeln!(f, "    |")
+    }
+}
+
+#[cfg(not(feature = "proc_macro_spans"))]
+impl fmt::Display for UseStdStmt {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "   --> {src}",
+            src = self
+                .src_path
+                .strip_prefix(std::env::current_dir().unwrap())
+                .unwrap()
+                .display(),
+        )
+    }
 }
 
 pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
@@ -116,26 +184,30 @@ pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
 
     let mut offenses = vec![];
 
-    let use_statements: Vec<_> = syntax.items.iter().filter_map(|item| match item {
-        syn::Item::Use(item) => Some(item),
-        _ => None,
-    }).collect();
+    let use_statements: Vec<_> = syntax
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            syn::Item::Use(item) => Some(item),
+            _ => None,
+        })
+        .collect();
 
-    let mut has_use_std = false;
     let std_ident: syn::Ident = syn::parse_quote!(std);
     for use_statement in &use_statements {
         match use_statement.tree {
             syn::UseTree::Path(ref first_path) => {
                 let first_ident = &first_path.ident;
                 if first_ident == &std_ident {
-                    has_use_std = true;
+                    let stmt = UseStdStmt {
+                        src_path: src_path.clone(),
+                        span: use_statement.tree.span(),
+                    };
+                    offenses.push(SourceOffense::UseStdStatement(stmt));
                 }
-            },
+            }
             _ => unimplemented!(),
         }
-    }
-    if has_use_std {
-        offenses.push(SourceOffense::UseStdStatement);
     }
 
     let always_no_std: syn::Attribute = syn::parse_quote!(#![no_std]);

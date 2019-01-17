@@ -111,9 +111,10 @@ fn check_and_print_package(
             match offense {
                 SourceOffense::MissingNoStdAttribute => {
                     println!("  - Did not find a #![no_std] attribute or a simple conditional attribute like #[cfg_attr(not(feature = \"std\"), no_std)] in the crate source. Crate most likely doesn't support no_std without changes.");
-                },
-                SourceOffense::UseStdStatement => {
+                }
+                SourceOffense::UseStdStatement(stmt) => {
                     println!("  - Source code contains an explicit `use std::` statement.");
+                    println!("{}", stmt);
                 }
             }
         }
