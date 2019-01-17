@@ -1,6 +1,7 @@
 extern crate cargo_metadata;
 extern crate clap;
 extern crate console;
+extern crate glob;
 extern crate proc_macro2;
 extern crate quote;
 extern crate serde;
@@ -8,6 +9,7 @@ extern crate serde_json;
 extern crate syn;
 
 mod check;
+mod check_source;
 mod ext;
 mod util;
 
@@ -16,6 +18,7 @@ use console::Emoji;
 use std::path::PathBuf;
 
 use check::*;
+use check_source::*;
 use ext::*;
 use util::*;
 

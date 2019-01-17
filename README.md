@@ -11,6 +11,8 @@ However it is currently a very cumbersome process to find out if and why (not) a
 
 ```bash
 cargo install cargo-nono
+# For warnings with more informative messages install like this
+RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-nono
 ```
 
 ## Demo
@@ -35,7 +37,6 @@ The `cargo nono check` subcommand also understands the `--no-default-features` a
 ### Planned features
 
 - Warn of `[build-dependencies]` features bleeding over: [cargo#5730](https://github.com/rust-lang/cargo/issues/5730)
-- Check for `use std::` statements
 
 ## License
 
