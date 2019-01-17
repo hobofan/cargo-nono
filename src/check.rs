@@ -9,11 +9,11 @@ use ext::*;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum CrateSupport {
-    AlwaysNoStd,
     OnlyWithoutFeature(String),
     /// proc macros are not actually linked, so they don't hinder no_std support
     ProcMacro,
-    NotDetected,
+    SourceOffenses(Vec<SourceOffense>),
+    NoOffenseDetected,
 }
 
 #[derive(Debug)]
@@ -84,6 +84,15 @@ impl ConditionalAttribute {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum SourceOffense {
+    /// Source code is missing a `#![no_std]` attribute.
+    /// Only valid for entry point file (main.rs / lib.rs).
+    MissingNoStdAttribute,
+    /// Source code contains an explicit `use std::` statement.
+    UseStdStatement,
+}
+
 pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
     let mut file = File::open(&src_path).expect("Unable to open file");
 
@@ -105,13 +114,40 @@ pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
         }
     }
 
-    let always_no_std: syn::Attribute = syn::parse_quote!(#![no_std]);
-    let contains_always_no_std = syntax.attrs.contains(&always_no_std);
-    if contains_always_no_std {
-        return CrateSupport::AlwaysNoStd;
+    let mut offenses = vec![];
+
+    let use_statements: Vec<_> = syntax.items.iter().filter_map(|item| match item {
+        syn::Item::Use(item) => Some(item),
+        _ => None,
+    }).collect();
+
+    let mut has_use_std = false;
+    let std_ident: syn::Ident = syn::parse_quote!(std);
+    for use_statement in &use_statements {
+        match use_statement.tree {
+            syn::UseTree::Path(ref first_path) => {
+                let first_ident = &first_path.ident;
+                if first_ident == &std_ident {
+                    has_use_std = true;
+                }
+            },
+            _ => unimplemented!(),
+        }
+    }
+    if has_use_std {
+        offenses.push(SourceOffense::UseStdStatement);
     }
 
-    CrateSupport::NotDetected
+    let always_no_std: syn::Attribute = syn::parse_quote!(#![no_std]);
+    let contains_always_no_std = syntax.attrs.contains(&always_no_std);
+    if !contains_always_no_std {
+        offenses.push(SourceOffense::MissingNoStdAttribute);
+    }
+
+    match offenses.is_empty() {
+        true => CrateSupport::NoOffenseDetected,
+        false => CrateSupport::SourceOffenses(offenses),
+    }
 }
 
 pub struct CheckResult {
@@ -123,10 +159,10 @@ pub struct CheckResult {
 impl CheckResult {
     pub fn no_std_itself(&self) -> bool {
         match self.support {
-            CrateSupport::AlwaysNoStd => true,
             CrateSupport::ProcMacro => true,
             CrateSupport::OnlyWithoutFeature(ref feature) => !self.is_feature_active(feature),
-            CrateSupport::NotDetected => false,
+            CrateSupport::NoOffenseDetected => true,
+            CrateSupport::SourceOffenses(_) => false,
         }
     }
 
