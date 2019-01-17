@@ -45,11 +45,11 @@ fn check_and_print_package(
     let _resolved_dependency_features =
         package.all_dependency_features(&metadata_full, &active_features);
 
-    let mut support = CrateSupport::NotDetected;
+    let mut support = CrateSupport::NoOffenseDetected;
     if package.is_proc_macro() {
         support = CrateSupport::ProcMacro;
     }
-    if support == CrateSupport::NotDetected {
+    if support == CrateSupport::NoOffenseDetected {
         match is_main_pkg {
             false => {
                 let srcs: Vec<_> = package
@@ -62,7 +62,7 @@ fn check_and_print_package(
                     .into_iter()
                     .map(|src_path| get_crate_support_from_source(&src_path))
                     .next()
-                    .unwrap_or(CrateSupport::NotDetected);
+                    .unwrap_or(CrateSupport::NoOffenseDetected);
             }
             true => {
                 let srcs: Vec<_> = package
@@ -75,7 +75,7 @@ fn check_and_print_package(
                     .into_iter()
                     .map(|src_path| get_crate_support_from_source(&src_path))
                     .next()
-                    .unwrap_or(CrateSupport::NotDetected);
+                    .unwrap_or(CrateSupport::NoOffenseDetected);
             }
         }
     }
@@ -106,8 +106,17 @@ fn check_and_print_package(
         let feat = check.find_active_feature_by_name(&feature).unwrap();
         feat.print(&metadata, 2);
     }
-    if check.support == CrateSupport::NotDetected {
-        println!("  - Did not find a #![no_std] attribute or a simple conditional attribute like #[cfg_attr(not(feature = \"std\"), no_std)] in the crate source. Crate most likely doesn't support no_std without changes.");
+    if let CrateSupport::SourceOffenses(ref offenses) = check.support {
+        for offense in offenses {
+            match offense {
+                SourceOffense::MissingNoStdAttribute => {
+                    println!("  - Did not find a #![no_std] attribute or a simple conditional attribute like #[cfg_attr(not(feature = \"std\"), no_std)] in the crate source. Crate most likely doesn't support no_std without changes.");
+                },
+                SourceOffense::UseStdStatement => {
+                    println!("  - Source code contains an explicit `use std::` statement.");
+                }
+            }
+        }
     }
 
     package_did_fail
