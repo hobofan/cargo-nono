@@ -1,0 +1,117 @@
+# Based on the "trust" template v0.1.2
+# https://github.com/japaric/trust/tree/v0.1.2
+
+dist: trusty
+language: rust
+services: docker
+sudo: required
+
+# TODO Rust builds on stable by default, this can be
+# overridden on a case by case basis down below.
+
+env:
+  global:
+    - CRATE_NAME=cargo-nono
+
+matrix:
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
+  # TODO These are all the build jobs. Adjust as necessary. Comment out what you
+  # don't need
+  include:
+    # Linux
+    # - env: TARGET=aarch64-unknown-linux-gnu
+    # - env: TARGET=arm-unknown-linux-gnueabi
+    # - env: TARGET=armv7-unknown-linux-gnueabihf
+    # - env: TARGET=i686-unknown-linux-gnu
+    # - env: TARGET=i686-unknown-linux-musl
+    # - env: TARGET=mips-unknown-linux-gnu
+    # - env: TARGET=mips64-unknown-linux-gnuabi64
+    # - env: TARGET=mips64el-unknown-linux-gnuabi64
+    # - env: TARGET=mipsel-unknown-linux-gnu
+    # - env: TARGET=powerpc-unknown-linux-gnu
+    # - env: TARGET=powerpc64-unknown-linux-gnu
+    # - env: TARGET=powerpc64le-unknown-linux-gnu
+    # - env: TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1
+    - env: TARGET=x86_64-unknown-linux-gnu
+    # - env: TARGET=x86_64-unknown-linux-musl
+
+    # OSX
+    # - env: TARGET=i686-apple-darwin
+    #   os: osx
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+
+    # *BSD
+    # - env: TARGET=i686-unknown-freebsd DISABLE_TESTS=1
+    # - env: TARGET=x86_64-unknown-freebsd DISABLE_TESTS=1
+    # - env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1
+
+    # Windows
+    # - env: TARGET=x86_64-pc-windows-gnu
+
+    # Bare metal
+    # These targets don't support std and as such are likely not suitable for
+    # most crates.
+    # - env: TARGET=thumbv6m-none-eabi
+    # - env: TARGET=thumbv7em-none-eabi
+    # - env: TARGET=thumbv7em-none-eabihf
+    # - env: TARGET=thumbv7m-none-eabi
+
+    # Testing other channels
+    - env: TARGET=x86_64-unknown-linux-gnu
+      rust: nightly
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+      rust: nightly
+
+before_install:
+  - set -e
+  - rustup self update
+
+install:
+  - sh ci/install.sh
+  - source ~/.cargo/env || true
+
+script:
+  - bash ci/script.sh
+
+after_script: set +e
+
+before_deploy:
+  - sh ci/before_deploy.sh
+
+deploy:
+  # TODO update `api_key.secure`
+  # - Create a `public_repo` GitHub token. Go to: https://github.com/settings/tokens/new
+  # - Encrypt it: `travis encrypt 0123456789012345678901234567890123456789
+  # - Paste the output down here
+  api_key:
+    secure: utHees/+n+Lpqz/6b7kIZhP7xxPiHcG9W+uID+izTaU8A+T1m7/z5f5Hxv/qIYRKvXe4+NTg+gaSGw01Sw2UtteWJqlP09AkulaD2GXxQDagyfB/TvJMrAzkQajBM6N14gReoqRSnY9r6xnMQevQwOckvIpEGS9SmXkzw8rz+8+LEnVP6cSkqAjfLmYfYoFV8shHcE5nH6AA65+BSgYPve+Zfzncxcg8cy82e3H0FiXcQv8HmIR5ive73gMzwv91lA4EHwiPoBsQRvRSBbYEJ1x9k7qdCZHne/HoNeTjPC7XN2U30LkKjcq1d+uCfA3lq0/GTo3E1jjFqRfMwDhaF99EyFVdPbi/4/vecsmuISUAVDop+s9nB8b4gattqeJ3lUoo0cTUA+M13cDI2KqjZOgWbgaL1AaeMWgmtBxPSUOTONmWYTb925m/oVmhPSaxqgrD0lFuAfJSVH2Zf78zsxoARbO6giiyKcA7o91hX38wEYBEnLfZSVsaAy+3AVcdoaC9KFqg3Mn1iQgL7PEniLAzQN1MuSHsfhjO91WoSRQNYXs4rZ+bmbarlAWyzriDFF9v8y8SmRxB7UWll4Ons+w3JfQqLmx2ZOln7h7J6xgOOtvdo6ZvkdV8HI8f3zzTjflU3rTJnr/JADkypA4jmOQsUiTIdKIr0yQUBOzbupM=
+  file_glob: true
+  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+  on:
+    # TODO Here you can pick which targets will generate binary releases
+    # In this example, there are some targets that are tested using the stable
+    # and nightly channels. This condition makes sure there is only one release
+    # for such targets and that's generated using the stable channel
+    condition: $TRAVIS_RUST_VERSION = stable
+    tags: true
+  provider: releases
+  skip_cleanup: true
+
+cache: cargo
+before_cache:
+  # Travis can't cache files that are not readable by "others"
+  - chmod -R a+r $HOME/.cargo
+
+branches:
+  only:
+    # release tags
+    - /^\d+\.\d+\.\d+.*$/
+    - master
+
+notifications:
+  email:
+    on_success: never
