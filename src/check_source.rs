@@ -137,8 +137,39 @@ impl fmt::Display for UseStdStmt {
     }
 }
 
-pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
-    let mut file = File::open(&src_path).expect("Unable to open file");
+pub fn get_crate_support_from_source(main_src_path: &PathBuf) -> CrateSupport {
+    let main_file_support = check_source(main_src_path, true);
+
+    let mut offenses = vec![];
+    match main_file_support {
+        CrateSupport::OnlyWithoutFeature(_) => return main_file_support,
+        CrateSupport::ProcMacro => return main_file_support,
+        CrateSupport::SourceOffenses(mut off) => offenses.append(&mut off),
+        CrateSupport::NoOffenseDetected => {}
+    };
+
+    let other_source_files_pattern = format!(
+        "{}/**/*.rs",
+        main_src_path.parent().unwrap().to_str().unwrap(),
+    );
+    let other_source_files = glob::glob(&other_source_files_pattern).unwrap();
+
+    for other_source_file in other_source_files {
+        let file_support = check_source(&other_source_file.unwrap(), false);
+        match file_support {
+            CrateSupport::SourceOffenses(mut off) => offenses.append(&mut off),
+            _ => {}
+        }
+    }
+
+    match offenses.is_empty() {
+        true => CrateSupport::NoOffenseDetected,
+        false => CrateSupport::SourceOffenses(offenses),
+    }
+}
+
+fn check_source(source_path: &PathBuf, is_main_file: bool) -> CrateSupport {
+    let mut file = File::open(&source_path).expect("Unable to open file");
 
     let mut src = String::new();
     file.read_to_string(&mut src).expect("Unable to read file");
@@ -176,7 +207,7 @@ pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
                 let first_ident = &first_path.ident;
                 if first_ident == &std_ident {
                     let stmt = UseStdStmt {
-                        src_path: src_path.clone(),
+                        src_path: source_path.clone(),
                         item_tree: use_statement.tree.clone(),
                     };
                     offenses.push(SourceOffense::UseStdStatement(stmt));
@@ -186,10 +217,12 @@ pub fn get_crate_support_from_source(src_path: &PathBuf) -> CrateSupport {
         }
     }
 
-    let always_no_std: syn::Attribute = syn::parse_quote!(#![no_std]);
-    let contains_always_no_std = syntax.attrs.contains(&always_no_std);
-    if !contains_always_no_std {
-        offenses.push(SourceOffense::MissingNoStdAttribute);
+    if is_main_file {
+        let always_no_std: syn::Attribute = syn::parse_quote!(#![no_std]);
+        let contains_always_no_std = syntax.attrs.contains(&always_no_std);
+        if !contains_always_no_std {
+            offenses.push(SourceOffense::MissingNoStdAttribute);
+        }
     }
 
     match offenses.is_empty() {
