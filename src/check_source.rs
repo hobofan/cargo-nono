@@ -267,6 +267,25 @@ fn find_use_std_statement_replacement(path_parts: &[String]) -> Option<Vec<Strin
                 .collect();
             return Some(replacement_path);
         }
+        false => {}
+    };
+
+    // check for module index files, so that module use statments like `use std::ops`
+    // are checked correctly
+    let glob_pattern_index = format!(
+        "{}/{}/index.html",
+        core_dir.to_str().unwrap(),
+        path_parts.last().unwrap()
+    );
+    let mut glob_files = glob::glob(&glob_pattern_index).unwrap();
+    match glob_files.next().is_some() {
+        true => {
+            let replacement_path = vec!["core".to_owned()]
+                .into_iter()
+                .chain(path_parts.into_iter().skip(1).map(|n| n.clone()))
+                .collect();
+            return Some(replacement_path);
+        }
         false => None,
     }
 }
