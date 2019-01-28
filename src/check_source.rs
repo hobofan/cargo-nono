@@ -213,7 +213,9 @@ fn check_source(source_path: &PathBuf, is_main_file: bool) -> CrateSupport {
                     offenses.push(SourceOffense::UseStdStatement(stmt));
                 }
             }
-            _ => unimplemented!(),
+            _ => {
+                // FIXME: #19 - ignore non-trivial use statements for now
+            }
         }
     }
 
