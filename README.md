@@ -7,7 +7,18 @@ However it is currently a very cumbersome process to find out if and why (not) a
 
 **cargo nono** tries to aid you in navigating the current minefield that is `no_std` usage, and it's biggest "no no"s.
 
-## Setup
+## Installation
+
+### Prebuilt binaries
+
+`cargo-nono` also comes as prebuilt binaries (useful for CI):
+
+```bash
+curl -LSfs https://japaric.github.io/trust/install.sh | \
+    sh -s -- --git hobofan/cargo-nono
+```
+
+### From crates.io
 
 ```bash
 cargo install cargo-nono
