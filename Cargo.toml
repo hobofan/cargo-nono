@@ -10,7 +10,7 @@ documentation = "https://github.com/hobofan/cargo-nono"
 
 [dependencies]
 cargo_metadata = "0.6.1"
-serde = "1.0.80"
+serde = "1.0.92"
 serde_json = "1.0.33"
 console = "0.6.2"
 syn = { version = "=0.15.18", default-features = false, features = ["full", "extra-traits", "parsing"] }
