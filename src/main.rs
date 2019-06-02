@@ -16,6 +16,7 @@ mod util;
 use clap::{App, Arg, SubCommand};
 use console::Emoji;
 use std::path::PathBuf;
+use std::process::Command;
 
 use check::*;
 use check_source::*;
@@ -126,6 +127,85 @@ fn check_and_print_package(
     package_did_fail
 }
 
+/// This subcommand tries to guess `no_std` compatibility from syntax (including dependencies).
+fn subcommand_check(matches: &clap::ArgMatches) {
+    let metadata_full = metadata_run(Some("--all-features".to_owned())).unwrap();
+    let metadata = metadata_run(None).unwrap();
+
+    let target_workspace_member = main_ws_member_from_args(&metadata, matches.value_of("package"));
+
+    let target_package = metadata.find_package(&target_workspace_member.raw).unwrap();
+    let features = features_from_args(
+        target_package.id.clone(),
+        matches.is_present("no-default-features"),
+        matches
+            .values_of("features")
+            .map(|n| n.into_iter().map(|m| m.to_owned()).collect())
+            .unwrap_or(Vec::new())
+            .to_owned(),
+    );
+
+    let active_features = target_package.active_features_for_features(&features);
+    let active_dependencies = target_package.active_dependencies(&active_features);
+    let active_packages =
+        dependencies_to_packages(&target_package, &metadata_full, &active_dependencies);
+
+    let mut package_did_fail = false;
+    let resolved_dependency_features =
+        target_package.all_dependency_features(&metadata_full, &active_features);
+
+    let main_package = metadata
+        .packages
+        .iter()
+        .find(|n| &n.name == target_workspace_member.name())
+        .expect("Unable to find main package.");
+    if check_and_print_package(
+        main_package,
+        &resolved_dependency_features,
+        &metadata,
+        &metadata_full,
+        true,
+    ) {
+        package_did_fail = true;
+    }
+
+    for package in active_packages.iter() {
+        if check_and_print_package(
+            package,
+            &resolved_dependency_features,
+            &metadata,
+            &metadata_full,
+            false,
+        ) {
+            package_did_fail = true;
+        }
+    }
+    match package_did_fail {
+        true => std::process::exit(1),
+        false => std::process::exit(0),
+    }
+}
+
+/// Check
+fn is_rustc_nightly() -> bool {
+    let output = Command::new("cargo")
+        .args(&["rustc", "--", "--build-plan"])
+        .output()
+        .unwrap()
+        .stdout;
+    let output = String::from_utf8(output).unwrap();
+
+    output.contains("nightly")
+}
+
+fn subcommand_check_compiled(matches: &clap::ArgMatches) {
+    if !(is_rustc_nightly()) {
+        println!("Not running with Rust nightly! Please invoke the cargo command using a nightly version of Rust, e.g. \"cargo +nightly \"");
+        std::process::exit(1);
+    }
+    std::process::exit(0);
+}
+
 fn main() {
     let mut app = App::new("cargo nono")
         .arg(Arg::with_name("dummy").hidden(true).possible_value("nono"))
@@ -139,66 +219,15 @@ fn main() {
                         .takes_value(true),
                 )
                 .arg(Arg::with_name("package").long("package").takes_value(true)),
-        );
+        )
+        .subcommand(SubCommand::with_name("check-compiled"));
 
     let matches = app.clone().get_matches();
     if let Some(matches) = matches.subcommand_matches("check") {
-        let metadata_full = metadata_run(Some("--all-features".to_owned())).unwrap();
-        let metadata = metadata_run(None).unwrap();
-
-        let target_workspace_member =
-            main_ws_member_from_args(&metadata, matches.value_of("package"));
-
-        let target_package = metadata.find_package(&target_workspace_member.raw).unwrap();
-        let features = features_from_args(
-            target_package.id.clone(),
-            matches.is_present("no-default-features"),
-            matches
-                .values_of("features")
-                .map(|n| n.into_iter().map(|m| m.to_owned()).collect())
-                .unwrap_or(Vec::new())
-                .to_owned(),
-        );
-
-        let active_features = target_package.active_features_for_features(&features);
-        let active_dependencies = target_package.active_dependencies(&active_features);
-        let active_packages =
-            dependencies_to_packages(&target_package, &metadata_full, &active_dependencies);
-
-        let mut package_did_fail = false;
-        let resolved_dependency_features =
-            target_package.all_dependency_features(&metadata_full, &active_features);
-
-        let main_package = metadata
-            .packages
-            .iter()
-            .find(|n| &n.name == target_workspace_member.name())
-            .expect("Unable to find main package.");
-        if check_and_print_package(
-            main_package,
-            &resolved_dependency_features,
-            &metadata,
-            &metadata_full,
-            true,
-        ) {
-            package_did_fail = true;
-        }
-
-        for package in active_packages.iter() {
-            if check_and_print_package(
-                package,
-                &resolved_dependency_features,
-                &metadata,
-                &metadata_full,
-                false,
-            ) {
-                package_did_fail = true;
-            }
-        }
-        match package_did_fail {
-            true => std::process::exit(1),
-            false => std::process::exit(0),
-        }
+        subcommand_check(matches);
+    }
+    if let Some(matches) = matches.subcommand_matches("check-compiled") {
+        subcommand_check_compiled(matches);
     }
     app.print_help().unwrap();
     println!(""); // print newline since print_help doesn't do that

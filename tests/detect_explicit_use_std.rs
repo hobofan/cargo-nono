@@ -24,7 +24,6 @@ fn it_prints_cause() {
         .stdout;
     let output = String::from_utf8(output).unwrap();
 
-    let expected_cause =
-        "Source code contains an explicit `use std::` statement";
+    let expected_cause = "Source code contains an explicit `use std::` statement";
     assert!(output.contains(expected_cause));
 }
