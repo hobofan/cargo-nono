@@ -61,7 +61,8 @@ matrix:
     # - env: TARGET=thumbv7m-none-eabi
 
     # Testing other channels
-    # Until issue #37 is fixed, disable linux targets
+    # Until issue #37 is fixed, disable linux targets.
+    # Test failed CI due to file locking error, try again
     #- env: TARGET=x86_64-unknown-linux-gnu
     #  rust: nightly
     - env: TARGET=x86_64-apple-darwin
