@@ -34,7 +34,8 @@ matrix:
     # - env: TARGET=powerpc64-unknown-linux-gnu
     # - env: TARGET=powerpc64le-unknown-linux-gnu
     # - env: TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1
-    - env: TARGET=x86_64-unknown-linux-gnu
+    # Until issue #37 is fixed, disable linux targets
+    # - env: TARGET=x86_64-unknown-linux-gnu
     # - env: TARGET=x86_64-unknown-linux-musl
 
     # OSX
@@ -60,8 +61,10 @@ matrix:
     # - env: TARGET=thumbv7m-none-eabi
 
     # Testing other channels
-    - env: TARGET=x86_64-unknown-linux-gnu
-      rust: nightly
+    # Until issue #37 is fixed, disable linux targets.
+    # Test failed CI due to file locking error, try again
+    #- env: TARGET=x86_64-unknown-linux-gnu
+    #  rust: nightly
     - env: TARGET=x86_64-apple-darwin
       os: osx
       rust: nightly
