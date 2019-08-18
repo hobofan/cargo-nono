@@ -28,6 +28,6 @@ fn it_prints_checkmark() {
         .stdout;
     let output = String::from_utf8(output).unwrap();
 
-    let expected_cause = "crate_itself_fixed_no_std: SUCCESS";
+    let expected_cause = "crate_itself_fixed_no_std: ✅";
     assert!(output.contains(expected_cause));
 }
