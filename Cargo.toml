@@ -10,7 +10,7 @@ documentation = "https://github.com/hobofan/cargo-nono"
 edition = "2018"
 
 [dependencies]
-cargo_metadata = "0.6.1"
+cargo_metadata = "0.8.2"
 serde = "1.0.80"
 serde_json = "1.0.33"
 console = "0.6.2"

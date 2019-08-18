@@ -29,7 +29,7 @@ fn check_and_print_package(
 
     let package_features: Vec<Feature> = resolved_dependency_features
         .iter()
-        .filter(|n| n.package_id == package.id)
+        .filter(|n| n.package_id == package.id.repr)
         .map(|n| n.to_owned())
         .collect();
     let active_features = package.active_features_for_features(&package_features);
@@ -139,9 +139,9 @@ fn main() {
         let target_workspace_member =
             main_ws_member_from_args(&metadata, matches.value_of("package"));
 
-        let target_package = metadata.find_package(&target_workspace_member.raw).unwrap();
+        let target_package = metadata.find_package(&target_workspace_member.repr).unwrap();
         let features = features_from_args(
-            target_package.id.clone(),
+            target_package.id.repr.clone(),
             matches.is_present("no-default-features"),
             matches
                 .values_of("features")
@@ -162,7 +162,7 @@ fn main() {
         let main_package = metadata
             .packages
             .iter()
-            .find(|n| &n.name == target_workspace_member.name())
+            .find(|n| n.name == target_workspace_member.repr)
             .expect("Unable to find main package.");
         if check_and_print_package(
             main_package,

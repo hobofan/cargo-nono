@@ -1,7 +1,7 @@
 use std::env;
 use std::process::Command;
 use std::str::from_utf8;
-use cargo_metadata::{Dependency, Metadata, Package, WorkspaceMember};
+use cargo_metadata::{Dependency, Metadata, Package, PackageId};
 
 use crate::ext::{Feature, FeatureCause};
 
@@ -48,7 +48,7 @@ pub fn features_from_args(
 pub fn main_ws_member_from_args<'a>(
     metadata: &'a Metadata,
     package_arg: Option<&str>,
-) -> &'a WorkspaceMember {
+) -> &'a PackageId {
     let target_workspace_member;
     if metadata.workspace_members.len() == 1 {
         target_workspace_member = metadata.workspace_members.get(0).unwrap();
@@ -56,14 +56,14 @@ pub fn main_ws_member_from_args<'a>(
         let package_names: Vec<_> = metadata
             .workspace_members
             .iter()
-            .map(|n| n.name())
+            .map(|n| n.repr.clone())
             .collect();
         match package_arg {
             Some(package_name) => {
                 let member = metadata
                     .workspace_members
                     .iter()
-                    .find(|n| n.name() == package_name);
+                    .find(|n| n.repr == package_name);
                 if member.is_none() {
                     println!(
                         "Unknown package \"{}\". Please provide on of {:?} via --package flag.",
