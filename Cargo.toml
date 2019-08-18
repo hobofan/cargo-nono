@@ -7,20 +7,21 @@ keywords = ["cargo", "no_std", "nono", "subcommand"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/hobofan/cargo-nono"
 documentation = "https://github.com/hobofan/cargo-nono"
+edition = "2018"
 
 [dependencies]
-cargo_metadata = "0.6.1"
-serde = "1.0.80"
-serde_json = "1.0.33"
-console = "0.6.2"
-syn = { version = "=0.15.18", default-features = false, features = ["full", "extra-traits", "parsing"] }
-quote = { version = "0.6.10", default-features = false }
-clap = "2.32.0"
-proc-macro2 = { version = "0.4.24", default-features = false }
-glob = "0.2.11"
+cargo_metadata = "0.8.2"
+serde = "1.0.99"
+serde_json = "1.0.40"
+console = "0.7.7"
+clap = "2.33.0"
+glob = "0.3.0"
+syn = { version = "1.0.2", default-features = false, features = ["full", "extra-traits", "parsing"] }
+quote = { version = "1.0.1", default-features = false }
+proc-macro2 = { version = "1.0.1", default-features = false }
 
 [dev-dependencies]
-assert_cmd = "0.10.2"
+assert_cmd = "0.11.1"
 
 [features]
 default = []

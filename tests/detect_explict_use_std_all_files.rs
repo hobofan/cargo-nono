@@ -5,7 +5,7 @@ use std::process::Command;
 
 #[test]
 fn it_fails_with_exit_code_1() {
-    Command::main_binary()
+    Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
         .arg("check")
         .current_dir("./tests/detect_explicit_use_std_all_files")
@@ -15,7 +15,7 @@ fn it_fails_with_exit_code_1() {
 
 #[test]
 fn it_prints_cause() {
-    let output = Command::main_binary()
+    let output = Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
         .arg("check")
         .current_dir("./tests/detect_explicit_use_std_all_files")
@@ -30,7 +30,7 @@ fn it_prints_cause() {
 
 #[test]
 fn it_does_not_warn_about_no_std_statement() {
-    let output = Command::main_binary()
+    let output = Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
         .arg("check")
         .current_dir("./tests/detect_explicit_use_std_all_files")

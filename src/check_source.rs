@@ -1,4 +1,3 @@
-use quote::quote;
 use std::fmt;
 use std::fs::File;
 use std::io::Read;
@@ -9,7 +8,7 @@ use std::io::BufRead;
 #[cfg(feature = "proc_macro_spans")]
 use syn::spanned::Spanned;
 
-use check::*;
+use crate::check::*;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum SourceOffense {

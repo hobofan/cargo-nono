@@ -212,7 +212,7 @@ impl PackageExt for Package {
                             .clone()
                             .into_iter()
                             .map(|raw_feature| {
-                                let mut new_feature = Feature::new(self.id.to_owned(), raw_feature);
+                                let mut new_feature = Feature::new(self.id.repr.clone(), raw_feature);
                                 new_feature
                                     .causes
                                     .push(FeatureCause::Feature(Box::new(feature.clone())));
@@ -288,7 +288,7 @@ impl PackageExt for Package {
                     .into_iter()
                     .map(|raw_feature| {
                         let mut feature = Feature::new(dep_package_id.to_owned(), raw_feature);
-                        feature.causes.push(FeatureCause::Explicit(self.id.clone()));
+                        feature.causes.push(FeatureCause::Explicit(self.id.repr.clone()));
                         feature
                     })
                     .collect::<Vec<_>>();
@@ -298,7 +298,7 @@ impl PackageExt for Package {
                 // or the absence of the default-features option
                 if dependency.uses_default_features {
                     let mut feature = Feature::new(dep_package_id.to_owned(), "default".to_owned());
-                    feature.causes.push(FeatureCause::Default(self.id.clone()));
+                    feature.causes.push(FeatureCause::Default(self.id.repr.clone()));
 
                     explicit_dependency_features.push(feature);
                 }
@@ -319,7 +319,8 @@ impl PackageExt for Package {
         self.targets
             .iter()
             .filter(|target| target.kind.contains(&"lib".to_string()))
-            .map(|target| target.src_path.clone())
+            .flat_map(|target| target.src_path.to_str())
+            .map(|target| target.into())
             .collect()
     }
 
@@ -327,7 +328,8 @@ impl PackageExt for Package {
         self.targets
             .iter()
             .filter(|target| target.kind.contains(&"bin".to_string()))
-            .map(|target| target.src_path.clone())
+            .flat_map(|target| target.src_path.to_str())
+            .map(|target| target.into())
             .collect()
     }
 
@@ -349,7 +351,7 @@ impl MetadataExt for Metadata {
     fn find_package(&self, package_id: &str) -> Option<&Package> {
         self.packages
             .iter()
-            .find(|package| package.id == package_id)
+            .find(|package| package.id.repr == package_id)
     }
 
     fn dependency_package_id(&self, package: &Package, dependency: &Dependency) -> Option<String> {
@@ -372,6 +374,6 @@ impl MetadataExt for Metadata {
         dependency_packages
             .into_iter()
             .find(|package| package.name == dependency.name)
-            .map(|n| n.id)
+            .map(|n| n.id.repr)
     }
 }

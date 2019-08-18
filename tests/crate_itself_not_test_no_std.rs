@@ -8,7 +8,7 @@ mod crate_itself_not_test_no_std {
 
     #[test]
     fn it_succeeds() {
-        Command::main_binary()
+        Command::cargo_bin(env!("CARGO_PKG_NAME"))
             .unwrap()
             .arg("check")
             .current_dir("./tests/crate_itself_not_test_no_std")
@@ -19,7 +19,7 @@ mod crate_itself_not_test_no_std {
 
 #[test]
 fn it_prints_checkmark() {
-    let output = Command::main_binary()
+    let output = Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
         .arg("check")
         .current_dir("./tests/crate_itself_not_test_no_std")
