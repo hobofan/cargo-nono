@@ -5,7 +5,7 @@ use std::process::Command;
 
 #[test]
 fn it_fails_with_exit_code_1() {
-    Command::main_binary()
+    Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
         .arg("check")
         .current_dir("./tests/dependency_default_std")
@@ -15,7 +15,7 @@ fn it_fails_with_exit_code_1() {
 
 #[test]
 fn it_succeeds_with_no_default_features() {
-    Command::main_binary()
+    Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
         .arg("check")
         .arg("--no-default-features")
@@ -26,7 +26,7 @@ fn it_succeeds_with_no_default_features() {
 
 #[test]
 fn it_prints_cause() {
-    let output = Command::main_binary()
+    let output = Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
         .arg("check")
         .current_dir("./tests/dependency_default_std")

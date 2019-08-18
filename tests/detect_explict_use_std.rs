@@ -5,7 +5,7 @@ use std::process::Command;
 
 #[test]
 fn it_fails_with_exit_code_1() {
-    Command::main_binary()
+    Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
         .arg("check")
         .current_dir("./tests/detect_explicit_use_std")
@@ -15,7 +15,7 @@ fn it_fails_with_exit_code_1() {
 
 #[test]
 fn it_prints_cause() {
-    let output = Command::main_binary()
+    let output = Command::cargo_bin(env!("CARGO_PKG_NAME"))
         .unwrap()
         .arg("check")
         .current_dir("./tests/detect_explicit_use_std")
@@ -24,7 +24,6 @@ fn it_prints_cause() {
         .stdout;
     let output = String::from_utf8(output).unwrap();
 
-    let expected_cause =
-        "Source code contains an explicit `use std::` statement";
+    let expected_cause = "Source code contains an explicit `use std::` statement";
     assert!(output.contains(expected_cause));
 }
