@@ -1,6 +1,5 @@
 use proc_macro2;
 use proc_macro2::TokenTree;
-use quote::quote;
 
 use crate::check_source::*;
 use crate::ext::*;
@@ -24,7 +23,7 @@ impl ConditionalAttribute {
     pub fn from_attribute(attr: &syn::Attribute) -> Option<Self> {
         let cfg_attr_path: syn::Path = syn::parse_quote!(cfg_attr);
         if attr.path == cfg_attr_path {
-            if let Some(ref first_group_ts) = attr.clone().tts.into_iter().next() {
+            if let Some(ref first_group_ts) = attr.clone().tokens.into_iter().next() {
                 // Group of the surrounding parenthesis
                 if let TokenTree::Group(group) = first_group_ts {
                     let mut inner_group_stream = group.stream().into_iter();
