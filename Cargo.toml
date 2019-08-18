@@ -7,6 +7,7 @@ keywords = ["cargo", "no_std", "nono", "subcommand"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/hobofan/cargo-nono"
 documentation = "https://github.com/hobofan/cargo-nono"
+edition = "2018"
 
 [dependencies]
 cargo_metadata = "0.6.1"

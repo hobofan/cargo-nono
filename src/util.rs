@@ -3,7 +3,7 @@ use std::process::Command;
 use std::str::from_utf8;
 use cargo_metadata::{Dependency, Metadata, Package, WorkspaceMember};
 
-use ext::{Feature, FeatureCause};
+use crate::ext::{Feature, FeatureCause};
 
 pub fn metadata_run(additional_args: Option<String>) -> Result<Metadata, ()> {
     let cargo = env::var("CARGO").unwrap_or_else(|_| String::from("cargo"));

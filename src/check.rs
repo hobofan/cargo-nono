@@ -2,8 +2,8 @@ use proc_macro2;
 use proc_macro2::TokenTree;
 use quote::quote;
 
-use check_source::*;
-use ext::*;
+use crate::check_source::*;
+use crate::ext::*;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum CrateSupport {
