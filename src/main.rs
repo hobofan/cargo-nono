@@ -139,7 +139,9 @@ fn main() {
         let target_workspace_member =
             main_ws_member_from_args(&metadata, matches.value_of("package"));
 
-        let target_package = metadata.find_package(&target_workspace_member.repr).unwrap();
+        let target_package = metadata
+            .find_package(&target_workspace_member.repr)
+            .unwrap();
         let features = features_from_args(
             target_package.id.repr.clone(),
             matches.is_present("no-default-features"),
@@ -162,7 +164,7 @@ fn main() {
         let main_package = metadata
             .packages
             .iter()
-            .find(|n| n.name == target_workspace_member.repr)
+            .find(|n| &n.id == target_workspace_member)
             .expect("Unable to find main package.");
         if check_and_print_package(
             main_package,
