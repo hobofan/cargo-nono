@@ -130,7 +130,7 @@ impl fmt::Display for UseStdStmt {
             src = self
                 .src_path
                 .strip_prefix(std::env::current_dir().unwrap())
-                .unwrap()
+                .unwrap_or(&self.src_path)
                 .display(),
         )
     }
