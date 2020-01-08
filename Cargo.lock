@@ -44,7 +44,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "cargo-nono"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "assert_cmd 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cargo_metadata 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
