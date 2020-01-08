@@ -247,12 +247,12 @@ impl PackageExt for Package {
         let dependency_feature_parts: Vec<_> = feature.name.split("/").collect();
         let dependency_name = dependency_feature_parts[0];
         let dependency_feature_name = dependency_feature_parts[1];
-        let dependency = self
-            .dependencies
-            .iter()
-            .find(|n| n.name == dependency_name)
-            .unwrap();
-        let dep_package_id = metadata.dependency_package_id(self, dependency);
+        let dependency = self.dependencies.iter().find(|n| n.name == dependency_name);
+        if dependency.is_none() {
+            return None;
+        }
+
+        let dep_package_id = metadata.dependency_package_id(self, dependency.unwrap());
         // package_id of dependency might not be findable if we try to activate the feature of a
         // optional dependency
         if dep_package_id.is_none() {
