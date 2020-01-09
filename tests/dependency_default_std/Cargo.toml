@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Maximilian Goisser <goisser94@gmail.com>"]
 
 [dependencies]
-serde = { version = "1.0.80", default-features = false }
+serde = { version = "1.0.80", default-features = false, features = ["derive"] }
 
 [features]
 default = ["serde/std"]

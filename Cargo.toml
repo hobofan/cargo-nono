@@ -19,6 +19,13 @@ glob = "0.3.0"
 syn = { version = "1.0.2", default-features = false, features = ["full", "extra-traits", "parsing"] }
 quote = { version = "1.0.1", default-features = false }
 proc-macro2 = { version = "1.0.1", default-features = false }
+gimli = "0.19.0"
+object = "0.17.0"
+twoway = "0.2.1"
+goblin = "0.1.3"
+fallible-iterator = "0.2.0"
+escargot = "0.5.0"
+duct = "0.13.4"
 
 [dev-dependencies]
 assert_cmd = "0.11.1"
@@ -26,3 +33,6 @@ assert_cmd = "0.11.1"
 [features]
 default = []
 proc_macro_spans = []
+
+[profile.dev]
+codegen-units = 1

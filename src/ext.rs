@@ -212,7 +212,8 @@ impl PackageExt for Package {
                             .clone()
                             .into_iter()
                             .map(|raw_feature| {
-                                let mut new_feature = Feature::new(self.id.repr.clone(), raw_feature);
+                                let mut new_feature =
+                                    Feature::new(self.id.repr.clone(), raw_feature);
                                 new_feature
                                     .causes
                                     .push(FeatureCause::Feature(Box::new(feature.clone())));
@@ -288,7 +289,9 @@ impl PackageExt for Package {
                     .into_iter()
                     .map(|raw_feature| {
                         let mut feature = Feature::new(dep_package_id.to_owned(), raw_feature);
-                        feature.causes.push(FeatureCause::Explicit(self.id.repr.clone()));
+                        feature
+                            .causes
+                            .push(FeatureCause::Explicit(self.id.repr.clone()));
                         feature
                     })
                     .collect::<Vec<_>>();
@@ -298,7 +301,9 @@ impl PackageExt for Package {
                 // or the absence of the default-features option
                 if dependency.uses_default_features {
                     let mut feature = Feature::new(dep_package_id.to_owned(), "default".to_owned());
-                    feature.causes.push(FeatureCause::Default(self.id.repr.clone()));
+                    feature
+                        .causes
+                        .push(FeatureCause::Default(self.id.repr.clone()));
 
                     explicit_dependency_features.push(feature);
                 }
@@ -375,5 +380,19 @@ impl MetadataExt for Metadata {
             .into_iter()
             .find(|package| package.name == dependency.name)
             .map(|n| n.id.repr)
+    }
+}
+
+pub trait EscargotBuildExt {
+    fn set_features(self, no_default: bool, features_args: Vec<String>) -> Self;
+}
+
+impl EscargotBuildExt for escargot::CargoBuild {
+    fn set_features(self, no_default: bool, features_args: Vec<String>) -> Self {
+        let mut build = self;
+        if no_default {
+            build = build.no_default_features();
+        }
+        build.features(features_args.join(" "))
     }
 }

@@ -1,0 +1,8 @@
+[package]
+name = "verify_dependency_with_std"
+version = "0.1.0"
+authors = ["Maximilian Goisser <goisser94@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+dependency_with_std = { path = "../dependency_with_std" }
