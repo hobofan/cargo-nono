@@ -222,7 +222,8 @@ fn check_source(source_path: &PathBuf, is_main_file: bool) -> CrateSupport {
         let always_no_std: syn::Attribute = syn::parse_quote!(#![no_std]);
         let contains_always_no_std = syntax.attrs.contains(&always_no_std);
         if !contains_always_no_std {
-            let not_test_no_std: syn::Attribute = syn::parse_quote!(#![cfg_attr(not(test), no_std)]);
+            let not_test_no_std: syn::Attribute =
+                syn::parse_quote!(#![cfg_attr(not(test), no_std)]);
             let contains_not_test_no_std = syntax.attrs.contains(&not_test_no_std);
             if !contains_not_test_no_std {
                 offenses.push(SourceOffense::MissingNoStdAttribute);

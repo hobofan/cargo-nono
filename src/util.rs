@@ -1,7 +1,7 @@
+use cargo_metadata::{Dependency, Metadata, Package, PackageId};
 use std::env;
 use std::process::Command;
 use std::str::from_utf8;
-use cargo_metadata::{Dependency, Metadata, Package, PackageId};
 
 use crate::ext::{Feature, FeatureCause};
 
