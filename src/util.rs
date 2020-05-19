@@ -66,7 +66,7 @@ pub fn main_ws_member_from_args<'a>(
                     .find(|n| n.repr == package_name);
                 if member.is_none() {
                     println!(
-                        "Unknown package \"{}\". Please provide on of {:?} via --package flag.",
+                        "Unknown package \"{}\". Please provide one of {:?} via --package flag.",
                         package_name, package_names
                     );
                     std::process::exit(1);
@@ -74,7 +74,7 @@ pub fn main_ws_member_from_args<'a>(
                 target_workspace_member = member.unwrap();
             }
             None => {
-                println!("Multiple packages present in workspace. Please provide on of {:?} via --package flag.", package_names);
+                println!("Multiple packages present in workspace. Please provide one of {:?} via --package flag.", package_names);
                 std::process::exit(1);
             }
         }
