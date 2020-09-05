@@ -53,28 +53,32 @@ pub fn main_ws_member_from_args<'a>(
     if metadata.workspace_members.len() == 1 {
         target_workspace_member = metadata.workspace_members.get(0).unwrap();
     } else {
-        let package_names: Vec<_> = metadata
-            .workspace_members
+        let workspace_members = &metadata.workspace_members[..];
+        let workspace_packages: Vec<_> = metadata
+            .packages
             .iter()
-            .map(|n| n.repr.clone())
+            .filter(|p| workspace_members.contains(&p.id))
+            .collect();
+        let package_names: Vec<_> = workspace_packages
+            .iter()
+            .map(|n| n.name.clone())
             .collect();
         match package_arg {
             Some(package_name) => {
-                let member = metadata
-                    .workspace_members
+                let member = workspace_packages
                     .iter()
-                    .find(|n| n.repr == package_name);
+                    .find(|p| p.name == package_name);
                 if member.is_none() {
                     println!(
-                        "Unknown package \"{}\". Please provide on of {:?} via --package flag.",
+                        "⚠️ Unknown package \"{}\". Please provide one of {:?} via --package flag.",
                         package_name, package_names
                     );
                     std::process::exit(1);
                 }
-                target_workspace_member = member.unwrap();
+                target_workspace_member = &member.unwrap().id;
             }
             None => {
-                println!("Multiple packages present in workspace. Please provide on of {:?} via --package flag.", package_names);
+                println!("⚠️ Multiple packages present in workspace. Please provide one of {:?} via --package flag.", package_names);
                 std::process::exit(1);
             }
         }
