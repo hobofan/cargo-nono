@@ -63,25 +63,42 @@ pub fn main_ws_member_from_args<'a>(
             .iter()
             .map(|n| n.name.clone())
             .collect();
-        match package_arg {
+
+        target_workspace_member = match package_arg {
             Some(package_name) => {
                 let member = workspace_packages
                     .iter()
                     .find(|p| p.name == package_name);
                 if member.is_none() {
                     println!(
-                        "⚠️ Unknown package \"{}\". Please provide one of {:?} via --package flag.",
+                        "⚠️  Unknown package \"{}\". Please provide one of {:?} via --package flag.",
                         package_name, package_names
                     );
                     std::process::exit(1);
                 }
-                target_workspace_member = &member.unwrap().id;
+                &member.unwrap().id
             }
             None => {
-                println!("⚠️ Multiple packages present in workspace. Please provide one of {:?} via --package flag.", package_names);
-                std::process::exit(1);
+                let current_dir = env::current_dir().unwrap();
+                let member = workspace_packages
+                    .iter()
+                    .find(|p| {
+                        if let Some(package_dir) = p.manifest_path.parent() {
+                            package_dir == current_dir.as_path()
+                        } else {
+                            false
+                        }
+                    });
+                    if member.is_none() {
+                        println!(
+                            "⚠️  Multiple packages present in workspace. Please provide one of {:?} via --package flag.",
+                            package_names
+                        );
+                        std::process::exit(1);
+                    }
+                &member.unwrap().id
             }
-        }
+        };
     }
     target_workspace_member
 }
