@@ -145,6 +145,7 @@ pub fn get_crate_support_from_source(main_src_path: &PathBuf) -> CrateSupport {
         CrateSupport::ProcMacro => return main_file_support,
         CrateSupport::SourceOffenses(mut off) => offenses.append(&mut off),
         CrateSupport::NoOffenseDetected => {}
+        CrateSupport::Skipped => return main_file_support,
     };
 
     let other_source_files_pattern = format!(
