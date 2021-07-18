@@ -11,6 +11,7 @@ pub enum CrateSupport {
     ProcMacro,
     SourceOffenses(Vec<SourceOffense>),
     NoOffenseDetected,
+    Skipped,
 }
 
 #[derive(Debug)]
@@ -94,6 +95,7 @@ impl CheckResult {
             CrateSupport::OnlyWithoutFeature(ref feature) => !self.is_feature_active(feature),
             CrateSupport::NoOffenseDetected => true,
             CrateSupport::SourceOffenses(_) => false,
+            CrateSupport::Skipped => true,
         }
     }
 

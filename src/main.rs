@@ -5,6 +5,7 @@ mod util;
 
 use clap::{App, Arg, SubCommand};
 use console::Emoji;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use crate::check::*;
@@ -17,12 +18,14 @@ use cargo_metadata::{Metadata, Package};
 pub static SUCCESS: Emoji = Emoji("✅  ", "SUCCESS");
 pub static FAILURE: Emoji = Emoji("❌  ", "FAILURE");
 pub static MAYBE: Emoji = Emoji("❓  ", "MAYBE");
+pub static SKIPPED: Emoji = Emoji("⏭  ", "SKIPPED");
 
 fn check_and_print_package(
     package: &Package,
     resolved_dependency_features: &[Feature],
     metadata: &Metadata,
     metadata_full: &Metadata,
+    allowed: &HashSet<String>,
     is_main_pkg: bool,
 ) -> bool {
     let mut package_did_fail = false;
@@ -41,6 +44,9 @@ fn check_and_print_package(
     let mut support = CrateSupport::NoOffenseDetected;
     if package.is_proc_macro() {
         support = CrateSupport::ProcMacro;
+    }
+    if allowed.contains(&package.name) {
+        support = CrateSupport::Skipped;
     }
     if support == CrateSupport::NoOffenseDetected {
         match is_main_pkg {
@@ -83,9 +89,15 @@ fn check_and_print_package(
     if !check.no_std_itself() {
         package_did_fail = true;
     }
-    let overall_res = match check.no_std_itself() {
-        true => SUCCESS,
-        false => FAILURE,
+    let overall_res = match check.support {
+        CrateSupport::ProcMacro => SUCCESS,
+        CrateSupport::OnlyWithoutFeature(ref feature) => match check.is_feature_active(feature) {
+            false => SUCCESS,
+            true => FAILURE,
+        },
+        CrateSupport::NoOffenseDetected => SUCCESS,
+        CrateSupport::SourceOffenses(_) => FAILURE,
+        CrateSupport::Skipped => SKIPPED,
     };
     println!("{}: {}", check.package_name, overall_res);
     if check.no_std_itself() {
@@ -128,6 +140,12 @@ fn main() {
                         .multiple(true)
                         .takes_value(true),
                 )
+                .arg(
+                    Arg::with_name("allow")
+                        .long("allow")
+                        .multiple(true)
+                        .takes_value(true),
+                )
                 .arg(Arg::with_name("package").long("package").takes_value(true)),
         );
 
@@ -151,6 +169,11 @@ fn main() {
                 .unwrap_or(Vec::new())
                 .to_owned(),
         );
+        let allowed: HashSet<String> = matches
+            .values_of("allow")
+            .map(|n| n.into_iter().map(|m| m.to_owned()).collect())
+            .unwrap_or(HashSet::new())
+            .to_owned();
 
         let active_features = target_package.active_features_for_features(&features);
         let active_dependencies = target_package.active_dependencies(&active_features);
@@ -171,6 +194,7 @@ fn main() {
             &resolved_dependency_features,
             &metadata,
             &metadata_full,
+            &allowed,
             true,
         ) {
             package_did_fail = true;
@@ -182,6 +206,7 @@ fn main() {
                 &resolved_dependency_features,
                 &metadata,
                 &metadata_full,
+                &allowed,
                 false,
             ) {
                 package_did_fail = true;
