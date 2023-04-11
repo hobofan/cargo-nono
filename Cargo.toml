@@ -16,7 +16,7 @@ serde_json = "1.0.40"
 console = "0.7.7"
 clap = "2.33.0"
 glob = "0.3.0"
-syn = { version = "1.0.2", default-features = false, features = ["full", "extra-traits", "parsing"] }
+syn = { version = "1.0.2", default-features = false, features = ["full", "extra-traits", "parsing", "printing", "clone-impls"] }
 quote = { version = "1.0.1", default-features = false }
 proc-macro2 = { version = "1.0.1", default-features = false }
 
